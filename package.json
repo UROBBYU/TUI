@@ -1,0 +1,26 @@
+{
+	"name": "@urobbyu/tui",
+	"version": "0.1.0",
+	"description": "Simple Text-based User Interface system for terminal terminal applications",
+	"author": "Robert Liapota <urobbyu@gmail.com>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/UROBBYU/TUI.git"
+	},
+	"license": "MIT",
+	"publishConfig": {
+		"registry": "https://npm.pkg.github.com"
+	},
+	"main": "index.js",
+	"devDependencies": {
+		"@types/node": "^20.12.7"
+	},
+	"files": [
+		"LICENSE",
+		"index.js"
+	],
+	"keywords": [
+		"tui",
+		"cli"
+	]
+}
