@@ -295,75 +295,6 @@ export class Panel {
 	constructor(public readonly parent: Panel | TUI) {}
 
 	draw() {
-		/* const width = this.width
-		const height = this.height
-
-		if (
-			width < Math.max(0, this.minWidth) ||
-			height < Math.max(0, this.minHeight)
-		) return this
-
-		const border = this.border
-		const bs = {
-			top: getBorderStyle(border.top.style),
-			right: getBorderStyle(border.right.style),
-			bottom: getBorderStyle(border.bottom.style),
-			left: getBorderStyle(border.left.style),
-			topleft: getBorderStyle(border.top.left.style ?? border.top.style),
-			topright: getBorderStyle(border.top.right.style ?? border.top.style),
-			bottomleft: getBorderStyle(border.bottom.left.style ?? border.bottom.style),
-			bottomright: getBorderStyle(border.bottom.right.style ?? border.bottom.style)
-		}
-
-		const bAbsX = this.parent.absX + this.margin.left
-		const bAbsY = this.parent.absY + this.margin.top
-		const bWidth = this.parent.width - this.margin.left - this.margin.right
-		const bHeight = this.parent.height - this.margin.top - this.margin.bottom
-
-		const lines: string[] = []
-
-		for (let y = 0; y < bHeight; y++) {
-			let line = ''
-
-			for (let x = 0; x < bWidth; x++) {
-				const tb = y < border.top.width ? 'top' : (y >= bHeight - border.bottom.width ? 'bottom' : '')
-				const lr = x < border.left.width ? 'left' : (x >= bWidth - border.right.width ? 'right' : '')
-				const quad = `${tb}${lr}` as const
-
-				if (quad) {
-					const horOut = x === 0 || x === (bWidth - 1)
-					const verOut = y === 0 || y === (bHeight - 1)
-
-					const bSym = pickBorderSymbol(
-						(!!lr || (horOut && y !== bHeight - border.bottom.width)) && (!tb || y > 0),
-						(!!tb || (verOut && x !== border.left.width - 1)) && (!lr || (x < bWidth - 1)),
-						(!!lr || (horOut && y !== border.top.width - 1)) && (!tb || (y < bHeight - 1)),
-						(!!tb || (verOut && x !== bWidth - border.right.width)) && (!lr || x > 0),
-					)
-
-					line += bs[quad][bSym] // TODO: Colors
-				} else if (
-					y < border.top.width + this.padding.top ||
-					y >= bHeight - (border.bottom.width + this.padding.bottom) ||
-					x < border.left.width + this.padding.left ||
-					x >= bWidth - (border.right.width + this.padding.right)
-				) line += ' '
-				else line += '.'
-			}
-
-			lines.push(line)
-		}
-
-		const pad = bAbsX > 1 ? `\x1B[${bAbsX - 1}C` : ''
-		const frame = lines.join(`\x1B[E${pad}`)
-
-		const tui = this.tui
-
-		tui.writeCode('7')
-		.moveTo(bAbsX, bAbsY)
-		.write(frame)
-		.writeCode('8') */
-
 		this.tui.style({ bgColor: this.bgColor, color: this.color })
 		this.drawBorder()
 		this.tui.style()
@@ -394,8 +325,6 @@ export class Panel {
 		const height = Math.min(this.height, this.maxHeight)
 		const pWidth = this.padding.left + width + this.padding.right
 		const pHeight = this.padding.top + height + this.padding.bottom
-		// const bWidth = this.margin.left + pWidth + this.margin.right
-		// const bHeight = this.margin.top + pHeight + this.margin.bottom
 		const bAbsX = this.parent.absX + this.margin.left
 		const bAbsY = this.parent.absY + this.margin.top
 
@@ -408,28 +337,27 @@ export class Panel {
 		const lB = buildBorderBlock(pWidth, bB.width, bB.fill, bs.bottom, undefined, bB.fill, undefined, bB.fill)
 		const lBR = buildBorderBlock(bR.width, bB.width, bB.fill, bs.bottomright, bR.fill, undefined, undefined, bB.fill)
 
-		const cTL = TUI.compStyle({ color: bT.left.color ?? bT.color })
-		const cT = TUI.compStyle({ color: bT.color })
-		const cTR = TUI.compStyle({ color: bT.right.color ?? bT.color })
-		const cL = TUI.compStyle({ color: bL.color })
-		const cR = TUI.compStyle({ color: bR.color })
-		const cBL = TUI.compStyle({ color: bB.left.color ?? bB.color })
-		const cB = TUI.compStyle({ color: bB.color })
-		const cBR = TUI.compStyle({ color: bB.right.color ?? bB.color })
+		const cTL = TUI.style({ color: bT.left.color ?? bT.color })
+		const cT = TUI.style({ color: bT.color })
+		const cTR = TUI.style({ color: bT.right.color ?? bT.color })
+		const cL = TUI.style({ color: bL.color })
+		const cR = TUI.style({ color: bR.color })
+		const cBL = TUI.style({ color: bB.left.color ?? bB.color })
+		const cB = TUI.style({ color: bB.color })
+		const cBR = TUI.style({ color: bB.right.color ?? bB.color })
 
 		const lines: string[] = [
 			...lT.map((l, i) => cTL+lTL[i] + cT+l + cTR+lTR[i]),
-			...lL.map((l, i) => cL+l + `\x1B[${pWidth}C` + cR+lR[i]),
+			...lL.map((l, i) => cL+l + TUI.cursorRight(pWidth) + cR+lR[i]),
 			...lB.map((l, i) => cBL+lBL[i] + cB+l + cBR+lBR[i])
 		]
 
-		const pad = bAbsX > 1 ? `\x1B[${bAbsX - 1}C` : ''
-		const frame = lines.join(`\x1B[E${pad}`)
+		const pad = bAbsX > 1 ? TUI.cursorRight(bAbsX - 1) : ''
+		const frame = TUI.cursorPosition(bAbsY, bAbsX) + lines.join(`\n${pad}`)
 
-		this.tui.writeCode('7')
-		.moveTo(bAbsX, bAbsY)
+		this.tui.saveCursor()
 		.write(frame)
-		.writeCode('8')
+		.restoreCursor()
 
 		return this
 	}

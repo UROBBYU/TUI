@@ -98,12 +98,11 @@ panel2.padding.left = 2 */
 panel2.maxWidth = 100
 
 const redraw = () => {
-	tui.writeCSI('2J').moveTo()
+	tui.erase().moveTo()
 	panel1.draw()
 	panel2.draw()
 }
 
-tui.init().cursorVisible(false).once('close', () => tui.cursorVisible())
-.on('resize', redraw)
-
-redraw()
+tui.on('resize', redraw)
+.once('close', () => tui.cursorVisible())
+.init().cursorVisible(false).emit('resize', 0, 0)
