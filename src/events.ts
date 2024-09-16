@@ -22,7 +22,7 @@ type WrapperData<K, T extends EventMap<T>> = {
 type ExtendedListener<K, T extends EventMap<T>> = (this: WrapperData<K, T>, ...args: Parameters<Listener<K, T>>) => void
 type Events<K extends Key2<T>, T extends EventMap<T>> = Partial<Record<K, (WrapperData<K, T> & OmitThisParameter<ExtendedListener<K, T>>)[]>>
 
-/** Custom variant of Event Emitter with useful methods from both Node.JS and Web versions */
+/** Custom variant of Event Emitter with useful methods from both Node.JS and Web versions. */
 export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMap> implements EventEmitter<T> {
 	protected _events: Events<Key2<T>, T> = {}
 	protected _maxListeners = 10

@@ -1,9 +1,14 @@
-import { Color, TUI } from '.'
+import { Color, TUI } from '..'
+import ExtendedEventEmitter from '../events'
+
+type PanelEvents = {
+	resize: [width: number, height: number]
+}
 
 type BoxMetrics = {
-	top: number,
-	right: number,
-	bottom: number,
+	top: number
+	right: number
+	bottom: number
 	left: number
 }
 
@@ -91,6 +96,20 @@ const BORDER_STYLES = {
 		bottomMid: '╩',
 		leftMid: '╠',
 		center: '╬'
+	} as CustomBorderStyle,
+	round: {
+		empty: ' ',
+		horizontal: '─',
+		vertertical: '│',
+		topLeft: '╭',
+		topRight: '╮',
+		bottomLeft: '╰',
+		bottomRight: '╯',
+		topMid: '┬',
+		rightMid: '┤',
+		bottomMid: '┴',
+		leftMid: '├',
+		center: '┼'
 	} as CustomBorderStyle,
 	solid: {
 		empty: ' ',
@@ -265,12 +284,20 @@ const buildBorderBlock = (
 	return lines
 }
 
-export class Panel {
-	innerText = ''
+export class Panel extends ExtendedEventEmitter<PanelEvents> {
+	#textLines: string[] = ['']
+	#innerText = ''
+	#wordWrap = false
+	#tabSize = 4
+	#scroll = 0
+	#maxWidth = Infinity
+	#width = NaN
+	#height = NaN
+
+	scrollDirection: 'up' | 'down' = 'down'
 	color: Color = 'default'
 	bgColor: Color = 'default'
 	minWidth = 1
-	maxWidth = Infinity
 	minHeight = 1
 	maxHeight = Infinity
 	margin: BoxMetrics = {
@@ -292,11 +319,49 @@ export class Panel {
 		left: { width: 1, style: 'line', color: 'default', fill: 'solid' }
 	}
 
-	constructor(public readonly parent: Panel | TUI) {}
+	constructor(public readonly parent: Panel | TUI) {
+		super()
+
+		parent.addListener('resize', () => {
+			if (this.updateSize()) {
+				this.updateText()
+				this.emit('resize', this.width, this.height)
+			}
+		})
+
+		this.updateSize()
+	}
+
+	updateSize() {
+		let avWidth = this.parent.width
+		avWidth -= this.margin.left
+		avWidth -= this.margin.right
+		avWidth -= this.border.left.width
+		avWidth -= this.border.right.width
+		avWidth -= this.padding.left
+		avWidth -= this.padding.right
+		let avHeight = this.parent.height
+		avHeight -= this.margin.top
+		avHeight -= this.margin.bottom
+		avHeight -= this.border.top.width
+		avHeight -= this.border.bottom.width
+		avHeight -= this.padding.top
+		avHeight -= this.padding.bottom
+
+		const lastWidth = this.#width
+		const lastHeight = this.#height
+
+		this.#width = Math.min(this.maxWidth, avWidth)
+		this.#height = Math.min(this.maxHeight, avHeight)
+
+		return lastWidth !== this.#width || lastHeight !== this.#height
+	}
 
 	draw() {
-		this.tui.style({ bgColor: this.bgColor, color: this.color })
+		this.tui.style({ bgColor: this.bgColor })
 		this.drawBorder()
+		this.tui.style({ color: this.color })
+		this.drawText()
 		this.tui.style()
 
 		return this
@@ -321,8 +386,8 @@ export class Panel {
 			bottomright: getBorderStyle(bB.right.style ?? bB.style)
 		}
 
-		const width = Math.min(this.width, this.maxWidth)
-		const height = Math.min(this.height, this.maxHeight)
+		const width = this.width
+		const height = this.height
 		const pWidth = this.padding.left + width + this.padding.right
 		const pHeight = this.padding.top + height + this.padding.bottom
 		const bAbsX = this.parent.absX + this.margin.left
@@ -353,13 +418,43 @@ export class Panel {
 		]
 
 		const pad = bAbsX > 1 ? TUI.cursorRight(bAbsX - 1) : ''
-		const frame = TUI.cursorPosition(bAbsY, bAbsX) + lines.join(`\n${pad}`)
+		const frame = TUI.cursorPosition(bAbsY, bAbsX) + lines.join(`\n${pad}`) + TUI.style()
 
 		this.tui.saveCursor()
 		.write(frame)
 		.restoreCursor()
 
 		return this
+	}
+
+	drawText() {
+		if (
+			this.width < Math.max(0, this.minWidth) ||
+			this.height < Math.max(0, this.minHeight)
+		) return this
+
+		const shift = Math.max(0, Math.min(this.scrollDirection == 'down' ? this.scroll : this.#textLines.length - this.height - this.scroll, this.#textLines.length - this.height))
+
+		const pad = this.absX > 1 ? TUI.cursorRight(this.absX - 1) : ''
+		const frame = TUI.cursorPosition(this.absY, this.absX) + [...this.#textLines].splice(shift, this.height).join(`\n${pad}`)
+
+		this.tui.saveCursor()
+		.write(frame)
+		.restoreCursor()
+
+		return this
+	}
+
+	updateText() {
+		this.#textLines = TUI.fitString(
+			this.innerText,
+			this.width,
+			this.width,
+			this.wordWrap,
+			this.tabSize,
+			TUI.style({ color: this.color })
+		)
+		this.scroll = this.scroll
 	}
 
 	get tui(): TUI {
@@ -383,27 +478,48 @@ export class Panel {
 			this.padding.top
 	}
 
-	get width(): number {
-		let available = this.parent.width
-		available -= this.margin.left
-		available -= this.margin.right
-		available -= this.border.left.width
-		available -= this.border.right.width
-		available -= this.padding.left
-		available -= this.padding.right
+	get width() { return this.#width }
 
-		return Math.min(this.maxWidth, available)
+	get height() { return this.#height }
+
+	get innerText() { return this.#innerText }
+	set innerText(v) {
+		if (this.#innerText !== v) {
+			this.#innerText = v
+			this.updateText()
+		}
 	}
 
-	get height(): number {
-		let available = this.parent.height
-		available -= this.margin.top
-		available -= this.margin.bottom
-		available -= this.border.top.width
-		available -= this.border.bottom.width
-		available -= this.padding.top
-		available -= this.padding.bottom
+	get wordWrap() { return this.#wordWrap }
+	set wordWrap(v) {
+		if (this.#wordWrap !== v) {
+			this.#wordWrap = v
+			this.updateText()
+		}
+	}
 
-		return Math.min(this.maxHeight, available)
+	get tabSize() { return this.#tabSize }
+	set tabSize(v) {
+		if (this.#tabSize !== v) {
+			this.#tabSize = v
+			this.updateText()
+		}
+	}
+
+	/** Either percent [0; 1] or line index. */
+	get scroll() { return this.#scroll }
+	set scroll(v) {
+		v = Math.max(0, v)
+		if (v >= 1) v = Math.min(Math.round(v), this.#textLines.length - this.#height)
+		this.#scroll = v
+	}
+
+	get maxWidth() { return this.#maxWidth }
+	set maxWidth(v) {
+		this.#maxWidth = v
+		if (this.updateSize()) {
+			this.updateText()
+			this.emit('resize', this.width, this.height)
+		}
 	}
 }

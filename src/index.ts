@@ -6,7 +6,7 @@ type RGBColor = `#${string}`
 type ColorIndex = number
 export type Color = ColorList | BrightColorList | ColorIndex | RGBColor | 'default'
 
-interface Style {
+type Style = {
 	color?: Color
 	bgColor?: Color
 	reset?: true
@@ -21,10 +21,10 @@ interface Style {
 	strikethrough?: boolean
 }
 
-interface TUIEvents {
-	close: [hadError: boolean],
-	end: [],
-	data: [data: Buffer],
+type TUIEvents = {
+	close: [hadError: boolean]
+	end: []
+	data: [data: Buffer]
 	resize: [width: number, height: number]
 }
 
@@ -40,8 +40,8 @@ const COLOR_LIST = {
 }
 
 const CURSOR_STYLES = {
-	b_block: 0,
-	deafult: 1,
+	default: 0,
+	b_block: 1,
 	block: 2,
 	b_underline: 3,
 	underline: 4,
@@ -52,7 +52,7 @@ const CURSOR_STYLES = {
 const ETX = Buffer.of(3)
 const EOT = Buffer.of(4)
 
-/** Text-based User Interface */
+/** Text-based User Interface. */
 export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	#lastRawMode: boolean
 	#active = false
@@ -248,11 +248,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return this.write(TUI.style(...arguments))
 	}
 
-	/** Sets cursor style. _(default = blinking block)_ */
+	/** Sets cursor style. _(default = normal)_ */
 	cursorStyle(): this
 	/** Sets cursor style.
 	 *
-	 * 0 ⇒ blinking block\
+	 * 0 ⇒ normal\
 	 * 1 ⇒ blinking block\
 	 * 2 ⇒ steady block\
 	 * 3 ⇒ blinking underline\
@@ -263,7 +263,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	cursorStyle(code: number): this
 	/** Sets cursor style. */
 	cursorStyle(style: keyof typeof CURSOR_STYLES): this
-	cursorStyle(opt: keyof typeof CURSOR_STYLES | number = 1) {
+	cursorStyle(opt: keyof typeof CURSOR_STYLES | number = 0) {
 		let code: number
 
 		if (typeof opt === 'number') {
@@ -278,16 +278,14 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			code = CURSOR_STYLES[opt]
 		}
 
-		return this.writeCode(`${code} q`)
+		return this.write(TUI.cursorStyle(code))
 	}
 
-	cursorVisible(is = true) {
-		return this.setCSIBool('?25', is)
-	}
+	/** Toggles cursor visibility. _(default = true)_ */
+	cursorVisible(is = true) { return this.write(TUI.cursorVisible(is)) }
 
-	altBuffer(val: boolean) {
-		return this.setCSIBool('?1049', val)
-	}
+	/** Toggles Alternate Buffer. _(default = true)_ */
+	altBuffer(is = true) { return this.write(TUI.altBuffer(is)) }
 
 
 	//? #################################
@@ -365,35 +363,73 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? ############ STATICS ############
 	//? #################################
 
-	static linerize(str: string, width: number, firstWidth = width, tabSize = 4) {
+	static fitString(str: string, width: number, firstWidth = width, wordWrap = true, tabSize = 4, defStyle?: string) {
+		const codes: {
+			code: string
+			x: number
+			y: number
+		}[] = []
 		const lines: string[][] = []
 		let line: string[] = []
 		let cursor = 0
 
-		for (let char of str) {
+		defStyle = '\x1b[m' + (defStyle ?? '')
+		str = str.replaceAll('\x1B[m', defStyle)
+
+		for (let i = 0; i < str.length; i++) {
+			let char = str[i]
 			const cp = char.codePointAt(0)!
-			if (
-				(0 < cp && cp < 9) ||
+			switch (true) {
+				case (0 < cp && cp < 9) ||
 				(10 < cp && cp < 13) ||
 				(13 < cp && cp < 32) ||
-				(127 < cp && cp < 160)
-			) char = '\uFFFF'
-			else if (cp === 9)
-				char = ' '.repeat(tabSize)
-			else if (cp === 10) {
-				lines.push(line)
-				line = []
-				cursor = 0
-			} else if (cp === 13) {
-				cursor = 0
-				continue
+				(127 < cp && cp < 160):
+					if (cp === 27) {
+						const rest = str.substring(i)
+						const mch = rest.match(/^\x1B\[(?:\d*)(?:;\d*)*m/)
+						if (mch) {
+							const code = mch[0]
+							codes.unshift({
+								code,
+								x: cursor,
+								y: lines.length
+							})
+							i += code.length - 1
+							continue
+						}
+					}
+					char = '\uFFFF'
+					break
+				case cp === 9:
+					char = ' '.repeat(tabSize)
+					break
+				case cp === 10:
+					lines.push(line)
+					line = []
+				case cp === 13:
+					cursor = 0
+					continue
 			}
 
 			const w = lines.length ? width : firstWidth
 			if (char.length > w) continue
 
-			const newLen = cursor + char.length
-			if (newLen > w) {
+			if (cursor + char.length > w) {
+				if (wordWrap) {
+					const lstSpace = line.findLastIndex(v => v === ' ')
+					if (~lstSpace && char.trimEnd()) {
+						const rest = line.splice(lstSpace + 1)
+						char = rest.join('') + char
+						for (const code of codes.filter(v => v.y === lines.length)) {
+							if (line.length - code.x <= 0) { // ABC ?DE?F
+								code.y++
+								code.x -= line.length
+							} else break
+						}
+					}
+
+					char = char.trimStart()
+				}
 				lines.push(line)
 				line = char.split('')
 				cursor = char.length
@@ -404,23 +440,16 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		}
 		lines.push(line)
 
-		return lines.map(l => l.join(''))
-	}
+		const text = lines.map(l => l.join(''))
+		codes.forEach(v => {
+			const line = text[v.y]
+			const left = line.substring(0, v.x)
+			const right = line.substring(v.x)
 
-	static textArea(
-		col: number, row: number,
-		width: number, height: number,
-		text: string,
-		scroll = true
-	) {
-		const lines = TUI.linerize(text, width)
+			text[v.y] = left + v.code + right
+		})
 
-		const start = scroll ? Math.max(lines.length - height, 0) : 0
-		const end = scroll || lines.length < height ? undefined : height
-
-		const block = lines.slice(start, end).join(`${TUI.cursorLeft(width)}${TUI.cursorDown()}`)
-
-		return `${TUI.saveCursor}${TUI.cursorPosition(row, col)}${block}${TUI.restoreCursor}`
+		return text
 	}
 
 
@@ -495,8 +524,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		let codes: number[] = []
 		if (typeof fst == 'number') {
 			codes = [fst, ...rst]
-		} else {
-			if (!fst || fst.reset) codes = [0]
+		} else if (fst) {
+			if (fst.reset) codes = [0]
 			else {
 				const pc = (opt: Style['bold'], t: number, f = t + 20, d = t) => {
 					if (opt !== undefined)
@@ -557,11 +586,9 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return TUI.CSI(`${codes.join(';')}m`)
 	}
 
-	/** `CSI Ps SP q` - Set cursor style (DECSCUSR), VT520. _(default = blinking block)_ */
-	static cursorStyle(): string
-	/** Set cursor style.
+	/** `CSI Ps SP q` - Set cursor style (DECSCUSR), VT520.
 	 *
-	 * 0 ⇒ blinking block\
+	 * 0 ⇒ normal _(default)_\
 	 * 1 ⇒ blinking block\
 	 * 2 ⇒ steady block\
 	 * 3 ⇒ blinking underline\
@@ -569,34 +596,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * 5 ⇒ blinking bar, xterm\
 	 * 6 ⇒ steady bar, xterm
 	 * */
-	static cursorStyle(code: number): string
-	/** Set cursor style. */
-	static cursorStyle(style: keyof typeof CURSOR_STYLES): string
-	static cursorStyle(opt: keyof typeof CURSOR_STYLES | number = 1) {
-		let code: number
-
-		if (typeof opt === 'number') {
-			if (!Number.isInteger(opt) || opt < 0 || opt > 6)
-				throw new Error(`Invalid style code: ${opt}`, { cause: opt })
-
-			code = opt
-		} else {
-			if (!Object.hasOwn(CURSOR_STYLES, opt))
-				throw new Error(`Invalid style: "${opt}"`, { cause: opt })
-
-			code = CURSOR_STYLES[opt]
-		}
-
-		return TUI.CSI(`${code} q`) // TODO: Test CSI vs ESC
-	}
+	static cursorStyle(code = 0) { return TUI.CSI(`${code} q`) }
 
 	/** `CSI ? 25 h/l` - Show/Hide cursor (DECTCEM), VT220. _(default = show)_ */
-	static cursorVisible(is = true) {
-		return TUI.CSIBool('?25', is)
-	}
+	static cursorVisible(is = true) { return TUI.CSIBool('?25', is) }
 
 	/** `CSI ? 1049 h/l` - Use Alternate/Normal Screen Buffer. _(default = alternate)_ */
-	static altBuffer(is = true) {
-		return TUI.CSIBool('?1049', is)
-	}
+	static altBuffer(is = true) { return TUI.CSIBool('?1049', is) }
 }

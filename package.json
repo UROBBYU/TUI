@@ -12,6 +12,10 @@
 		"registry": "https://npm.pkg.github.com"
 	},
 	"main": "index.js",
+	"scripts": {
+		"build": "tsc",
+		"postbuild": "copy .\\src\\keys.json .\\"
+	},
 	"devDependencies": {
 		"@types/node": "^20.12.7"
 	},
