@@ -252,13 +252,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	cursorStyle(): this
 	/** Sets cursor style.
 	 *
-	 * 0 ⇒ normal\
-	 * 1 ⇒ blinking block\
-	 * 2 ⇒ steady block\
-	 * 3 ⇒ blinking underline\
-	 * 4 ⇒ steady underline\
-	 * 5 ⇒ blinking bar, xterm\
-	 * 6 ⇒ steady bar, xterm
+	 * - 0 ⇒ normal
+	 * - 1 ⇒ blinking block
+	 * - 2 ⇒ steady block
+	 * - 3 ⇒ blinking underline
+	 * - 4 ⇒ steady underline
+	 * - 5 ⇒ blinking bar, xterm
+	 * - 6 ⇒ steady bar, xterm
 	 * */
 	cursorStyle(code: number): this
 	/** Sets cursor style. */
@@ -588,13 +588,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `CSI Ps SP q` - Set cursor style (DECSCUSR), VT520.
 	 *
-	 * 0 ⇒ normal _(default)_\
-	 * 1 ⇒ blinking block\
-	 * 2 ⇒ steady block\
-	 * 3 ⇒ blinking underline\
-	 * 4 ⇒ steady underline\
-	 * 5 ⇒ blinking bar, xterm\
-	 * 6 ⇒ steady bar, xterm
+	 * - 0 ⇒ normal _(default)_
+	 * - 1 ⇒ blinking block
+	 * - 2 ⇒ steady block
+	 * - 3 ⇒ blinking underline
+	 * - 4 ⇒ steady underline
+	 * - 5 ⇒ blinking bar, xterm
+	 * - 6 ⇒ steady bar, xterm
 	 * */
 	static cursorStyle(code = 0) { return TUI.CSI(`${code} q`) }
 
