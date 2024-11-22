@@ -15,22 +15,22 @@ type BoxMetrics = {
 type CustomBorderStyle = {
 	empty: string
 	horizontal: string
-	vertertical: string
+	vertical: string
 	topLeft: string
 	topRight: string
 	bottomLeft: string
 	bottomRight: string
-	topMid: string
-	rightMid: string
-	bottomMid: string
-	leftMid: string
+	top: string
+	right: string
+	bottom: string
+	left: string
 	center: string
 }
-type DefaultBorderStyles = keyof typeof BORDER_STYLES
-type BorderStyles = DefaultBorderStyles | CustomBorderStyle
+type DefaultBorderStyle = keyof typeof BORDER_STYLES
+export type BorderStyle = DefaultBorderStyle | CustomBorderStyle
 type BorderFill = 'solid' | 'lines'
 type BorderCorner = {
-	style?: BorderStyles
+	style?: BorderStyle
 	color?: Color
 }
 type BorderEdge = Required<BorderCorner> & {
@@ -58,90 +58,90 @@ const BORDER_STYLES = {
 	line: {
 		empty: ' ',
 		horizontal: '─',
-		vertertical: '│',
+		vertical: '│',
 		topLeft: '┌',
 		topRight: '┐',
 		bottomLeft: '└',
 		bottomRight: '┘',
-		topMid: '┬',
-		rightMid: '┤',
-		bottomMid: '┴',
-		leftMid: '├',
+		top: '┬',
+		right: '┤',
+		bottom: '┴',
+		left: '├',
 		center: '┼'
 	} as CustomBorderStyle,
 	thick: {
 		empty: ' ',
 		horizontal: '━',
-		vertertical: '┃',
+		vertical: '┃',
 		topLeft: '┏',
 		topRight: '┓',
 		bottomLeft: '┗',
 		bottomRight: '┛',
-		topMid: '┳',
-		rightMid: '┫',
-		bottomMid: '┻',
-		leftMid: '┣',
+		top: '┳',
+		right: '┫',
+		bottom: '┻',
+		left: '┣',
 		center: '╋'
 	} as CustomBorderStyle,
 	double: {
 		empty: ' ',
 		horizontal: '═',
-		vertertical: '║',
+		vertical: '║',
 		topLeft: '╔',
 		topRight: '╗',
 		bottomLeft: '╚',
 		bottomRight: '╝',
-		topMid: '╦',
-		rightMid: '╣',
-		bottomMid: '╩',
-		leftMid: '╠',
+		top: '╦',
+		right: '╣',
+		bottom: '╩',
+		left: '╠',
 		center: '╬'
 	} as CustomBorderStyle,
 	round: {
 		empty: ' ',
 		horizontal: '─',
-		vertertical: '│',
+		vertical: '│',
 		topLeft: '╭',
 		topRight: '╮',
 		bottomLeft: '╰',
 		bottomRight: '╯',
-		topMid: '┬',
-		rightMid: '┤',
-		bottomMid: '┴',
-		leftMid: '├',
+		top: '┬',
+		right: '┤',
+		bottom: '┴',
+		left: '├',
 		center: '┼'
 	} as CustomBorderStyle,
 	solid: {
 		empty: ' ',
 		horizontal: '█',
-		vertertical: '█',
+		vertical: '█',
 		topLeft: '█',
 		topRight: '█',
 		bottomLeft: '█',
 		bottomRight: '█',
-		topMid: '█',
-		rightMid: '█',
-		bottomMid: '█',
-		leftMid: '█',
+		top: '█',
+		right: '█',
+		bottom: '█',
+		left: '█',
 		center: '█'
 	} as CustomBorderStyle,
 	none: {
 		empty: ' ',
 		horizontal: ' ',
-		vertertical: ' ',
+		vertical: ' ',
 		topLeft: ' ',
 		topRight: ' ',
 		bottomLeft: ' ',
 		bottomRight: ' ',
-		topMid: ' ',
-		rightMid: ' ',
-		bottomMid: ' ',
-		leftMid: ' ',
+		top: ' ',
+		right: ' ',
+		bottom: ' ',
+		left: ' ',
 		center: ' '
 	} as CustomBorderStyle
 }
 
-const getBorderStyle = (style: BorderStyles): CustomBorderStyle => {
+const getBorderStyle = (style: BorderStyle): CustomBorderStyle => {
 	if (typeof style === 'string') {
 		if (!(style in BORDER_STYLES))
 			throw new Error(`No such default border style - "${style}"`, { cause: style })
