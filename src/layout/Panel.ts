@@ -152,57 +152,31 @@ const getBorderStyle = (style: BorderStyle): CustomBorderStyle => {
 	return style
 }
 
+const BORDER_SYMBOL_LOOKUP_TABLE: (keyof CustomBorderStyle)[] = [
+	'empty',
+	'horizontal',
+	'vertical',
+	'topRight',
+	'horizontal',
+	'horizontal',
+	'topLeft',
+	'top',
+	'vertical',
+	'bottomRight',
+	'vertical',
+	'right',
+	'bottomLeft',
+	'bottom',
+	'left',
+	'center'
+]
+
 const pickBorderSymbol = (
 	top: boolean,
 	right: boolean,
 	bottom: boolean,
 	left: boolean
-): keyof CustomBorderStyle => {
-	const sides = `${+top}${+right}${+bottom}${+left}`
-	switch (sides) {
-		case '0000':
-			return 'empty'
-		case '0001':
-		case '0100':
-		case '0101':
-			return 'horizontal'
-		case '0010':
-		case '1000':
-		case '1010':
-			return 'vertertical'
-		case '0011':
-			return 'topRight'
-		case '0110':
-			return 'topLeft'
-		case '0111':
-			return 'topMid'
-		case '1001':
-			return 'bottomRight'
-		case '1011':
-			return 'rightMid'
-		case '1100':
-			return 'bottomLeft'
-		case '1101':
-			return 'bottomMid'
-		case '1110':
-			return 'leftMid'
-	}
-
-	return 'center'
-	// TRBL
-	// 0000 | O
-	// 0001 | 0100 | 0101 | ─
-	// 0010 | 1000 | 1010 | │
-	// 0011 | ┐
-	// 0110 | ┌
-	// 0111 | ┬
-	// 1001 | ┘
-	// 1011 | ┤
-	// 1100 | └
-	// 1101 | ┴
-	// 1110 | ├
-	// 1111 | ┼
-}
+): keyof CustomBorderStyle => BORDER_SYMBOL_LOOKUP_TABLE[+top << 3 | +right << 2 | +bottom << 1 | +left]
 
 const buildBorderBlock = (
 	width: number,
