@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { AsyncLocalStorage } from 'node:async_hooks'
 
 type DefaultEventMap = [never]
 type EventMap<T> = Record<keyof T, any[]> | DefaultEventMap
@@ -21,6 +22,8 @@ type WrapperData<K, T extends EventMap<T>> = {
 }
 type ExtendedListener<K, T extends EventMap<T>> = (this: WrapperData<K, T>, ...args: Parameters<Listener<K, T>>) => void
 type Events<K extends Key2<T>, T extends EventMap<T>> = Partial<Record<K, (WrapperData<K, T> & OmitThisParameter<ExtendedListener<K, T>>)[]>>
+
+const asyncLocalStorage = new AsyncLocalStorage<Map<ExtendedEventEmitter<any> | null, Key2<any>[]>>()
 
 /** Custom variant of Event Emitter with useful methods from both Node.JS and Web versions. */
 export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMap> implements EventEmitter<T> {
@@ -151,9 +154,19 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 	}
 
 	emit<K>(eventName: Key<K, T>, ...args: Args<K, T>): boolean {
+		const suppMap = asyncLocalStorage.getStore()
+		const suppAll = suppMap?.get(null)
+		const suppThis = suppMap?.get(this)
+		const isSuppressed = suppAll || suppThis
+
+		if (isSuppressed) {
+			(suppThis ?? suppAll)?.push(eventName as any)
+			return false
+		}
+
 		if (eventName as Key2<T> in this._events) {
 			for (const e of [...this._events[eventName as Key2<T>]!]) {
-				// @ts-ignore TS is really stupid
+				// @ts-expect-error TS is really stupid
 				e(...args)
 				if (!e._propagation) {
 					e._propagation = true
@@ -178,5 +191,63 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 			...Object.getOwnPropertyNames(this._events),
 			...Object.getOwnPropertySymbols(this._events)
 		] as any
+	}
+
+	/** Alias for static method `.suppress(fn, ...targets)` with `this` as it's only target. */
+	suppress(fn: () => void): Key2<T>[] {
+		return ExtendedEventEmitter.suppress(fn, this).get(this) as any
+	}
+
+	/**
+	 * Suppresses `.emit()` calls for `targets` that happen anywhere inside `fn` function.
+	 *
+	 * If `targets` is empty, suppresses all `.emit()` calls.
+	 *
+	 * ```ts
+	 * const a = new ExtendedEventEmitter<{ test: [value: string] }>()
+	 * const b = new ExtendedEventEmitter<{ test: [value: string] }>()
+	 *
+	 * a.on('test', console.log)
+	 * b.on('test', console.log)
+	 *
+	 * a.emit('test', 'A | First')
+	 * b.emit('test', 'B | First')
+	 *
+	 * ExtendedEventEmitter.suppress(() => {
+	 * 	a.emit('test', 'A | All Suppressed')
+	 * 	b.emit('test', 'B | All Suppressed')
+	 * })
+	 *
+	 * ExtendedEventEmitter.suppress(() => {
+	 * 	a.emit('test', 'A | A Suppressed')
+	 * 	b.emit('test', 'B | A Suppressed')
+	 * }, a)
+	 *
+	 * b.suppress(() => {
+	 * 	a.emit('test', 'A | B Suppressed')
+	 * 	b.emit('test', 'B | B Suppressed')
+	 * })
+	 *
+	 * a.emit('test', 'A | Last')
+	 * b.emit('test', 'B | Last')
+	 *
+	 * // Prints:
+	 * // A | First
+	 * // B | First
+	 * // B | A Suppressed
+	 * // A | B Suppressed
+	 * // A | Last
+	 * // B | Last
+	 * ```
+	 * @returns {(string[]|Map<ExtendedEventEmitter,string[]>)} List of all suppressed events or a Map with lists mapped to ExtendedEventEmitter`s that emitted them
+	 */
+	static suppress(fn: () => void): Key2<any>[]
+	static suppress(fn: () => void, ...targets: ExtendedEventEmitter<any>[]): Map<ExtendedEventEmitter<any>, Key2<any>[]>
+	static suppress(fn: () => void, ...targets: ExtendedEventEmitter<any>[]): Map<ExtendedEventEmitter<any>, Key2<any>[]> | Key2<any>[] {
+		const tgt = targets.length ? targets : [null] as const
+		const map = new Map(tgt.map(v => [v, []]))
+		asyncLocalStorage.run(map, fn)
+
+		return map.get(null) ?? map as Map<ExtendedEventEmitter<any>, Key2<any>[]>
 	}
 }
