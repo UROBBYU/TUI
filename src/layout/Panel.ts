@@ -1,15 +1,10 @@
 import { Color, TUI } from '..'
 import ExtendedEventEmitter from '../events'
+import BorderBox from './BorderBox'
+import MetricBox from './MetricBox'
 
 type PanelEvents = {
 	resize: [width: number, height: number]
-}
-
-type BoxMetrics = {
-	top: number
-	right: number
-	bottom: number
-	left: number
 }
 
 type CustomBorderStyle = {
@@ -28,31 +23,13 @@ type CustomBorderStyle = {
 }
 type DefaultBorderStyle = keyof typeof BORDER_STYLES
 export type BorderStyle = DefaultBorderStyle | CustomBorderStyle
-type BorderFill = 'solid' | 'lines'
-type BorderCorner = {
-	style?: BorderStyle
-	color?: Color
-}
-type BorderEdge = Required<BorderCorner> & {
-	width: number
-	fill: BorderFill
-}
-type BorderBlock = BorderEdge & {
-	left: BorderCorner
-	right: BorderCorner
-}
+export type BorderFill = 'solid' | 'lines'
 type BorderBlockTile = [
 	top: boolean,
 	right: boolean,
 	bottom: boolean,
 	left: boolean
 ]
-type Border = {
-	top: BorderBlock
-	right: BorderEdge
-	bottom: BorderBlock
-	left: BorderEdge
-}
 
 const BORDER_STYLES = {
 	line: {
@@ -268,59 +245,50 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 	#width = NaN
 	#height = NaN
 
+	// TODO: Intercept parameters
 	scrollDirection: 'up' | 'down' = 'down'
 	color: Color = 'default'
 	bgColor: Color = 'default'
 	minWidth = 1
 	minHeight = 1
 	maxHeight = Infinity
-	margin: BoxMetrics = {
-		top: 0,
-		right: 0,
-		bottom: 0,
-		left: 0
-	}
-	padding: BoxMetrics = {
-		top: 0,
-		right: 0,
-		bottom: 0,
-		left: 0
-	}
-	border: Border = {
-		top: { width: 1, style: 'line', color: 'default', fill: 'solid', left: {}, right: {} },
-		right: { width: 1, style: 'line', color: 'default', fill: 'solid' },
-		bottom: { width: 1, style: 'line', color: 'default', fill: 'solid', left: {}, right: {} },
-		left: { width: 1, style: 'line', color: 'default', fill: 'solid' }
-	}
+	margin = new MetricBox()
+	padding = new MetricBox()
+	border = new BorderBox()
 
 	constructor(public readonly parent: Panel | TUI) {
 		super()
 
-		parent.addListener('resize', () => {
+		const resize = () => {
 			if (this.updateSize()) {
 				this.updateText()
 				this.emit('resize', this.width, this.height)
 			}
-		})
+		}
+
+		parent.on('resize', resize)
+		this.margin.on('resize', resize)
+		this.padding.on('resize', resize)
+		this.border.on('resize', resize)
 
 		this.updateSize()
 	}
 
 	updateSize() {
-		let avWidth = this.parent.width
-		avWidth -= this.margin.left
-		avWidth -= this.margin.right
-		avWidth -= this.border.left.width
-		avWidth -= this.border.right.width
-		avWidth -= this.padding.left
-		avWidth -= this.padding.right
-		let avHeight = this.parent.height
-		avHeight -= this.margin.top
-		avHeight -= this.margin.bottom
-		avHeight -= this.border.top.width
-		avHeight -= this.border.bottom.width
-		avHeight -= this.padding.top
-		avHeight -= this.padding.bottom
+		let avWidth = this.parent.width -
+		this.margin.left -
+		this.margin.right -
+		this.border.left.width -
+		this.border.right.width -
+		this.padding.left -
+		this.padding.right
+		let avHeight = this.parent.height -
+		this.margin.top -
+		this.margin.bottom -
+		this.border.top.width -
+		this.border.bottom.width -
+		this.padding.top -
+		this.padding.bottom
 
 		const lastWidth = this.#width
 		const lastHeight = this.#height
@@ -367,12 +335,12 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		const bAbsX = this.parent.absX + this.margin.left
 		const bAbsY = this.parent.absY + this.margin.top
 
-		const lTL = buildBorderBlock(bL.width, bT.width, bT.fill, bs.topleft, undefined, bT.fill, bL.fill, undefined)
+		const lTL = buildBorderBlock(bL.width, bT.width, bT.fill, bs.topleft, undefined, bT.fill, bL.fill)
 		const lT = buildBorderBlock(pWidth, bT.width, bT.fill, bs.top, undefined, bT.fill, undefined, bT.fill)
 		const lTR = buildBorderBlock(bR.width, bT.width, bT.fill, bs.topright, undefined, undefined, bR.fill, bT.fill)
-		const lL = buildBorderBlock(bL.width, pHeight, bL.fill, bs.left, bT.fill, undefined, bB.fill, undefined)
-		const lR = buildBorderBlock(bR.width, pHeight, bR.fill, bs.right, bT.fill, undefined, bB.fill, undefined)
-		const lBL = buildBorderBlock(bL.width, bB.width, bB.fill, bs.bottomleft, bL.fill, bB.fill, undefined, undefined)
+		const lL = buildBorderBlock(bL.width, pHeight, bL.fill, bs.left, bT.fill, undefined, bB.fill)
+		const lR = buildBorderBlock(bR.width, pHeight, bR.fill, bs.right, bT.fill, undefined, bB.fill)
+		const lBL = buildBorderBlock(bL.width, bB.width, bB.fill, bs.bottomleft, bL.fill, bB.fill)
 		const lB = buildBorderBlock(pWidth, bB.width, bB.fill, bs.bottom, undefined, bB.fill, undefined, bB.fill)
 		const lBR = buildBorderBlock(bR.width, bB.width, bB.fill, bs.bottomright, bR.fill, undefined, undefined, bB.fill)
 
@@ -480,7 +448,7 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		}
 	}
 
-	/** Either percent [0; 1] or line index. */
+	/** Either percent [0; 1) or line index. */
 	get scroll() { return this.#scroll }
 	set scroll(v) {
 		v = Math.max(0, v)
