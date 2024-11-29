@@ -175,6 +175,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** Erases the line. */
 	eraseLine() { return this.write(TUI.eraseLine) }
 
+	/** Erases specified amount of characters to the right of the cursor. */
+	eraseChars(amount = 1) { return this.write(TUI.eraseChars(amount)) }
+
+	/** Erases rectangular area. */
+	eraseRect(row: number, col: number, width: number, height: number) { return this.write(TUI.eraseRect(row, col, width, height)) }
+
 	/** Saves cursor positon. */
 	saveCursor() { return this.write(TUI.saveCursor) }
 
@@ -492,6 +498,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `CSI 2 K` - Erase in Line [All] (EL), VT100. */
 	static eraseLine = TUI.CSI('2K')
+
+	/** `CSI Ps X` - Erase Ps Character(s) (ECH). _(default = 1)_ */
+	static eraseChars(amount = 1) { return TUI.CSI(`${amount}X`) }
+
+	/** `CSI Pt ; Pl ; Pb ; Pr $ z` - Erase Rectangular Area (DECERA), VT400 and up. */
+	static eraseRect(row: number, col: number, width: number, height: number) { return TUI.CSI(`${row};${col};${row + height - 1};${col + width - 1}$z`) }
 
 	/** `ESC 7` - Save Cursor (DECSC), VT100. */
 	static saveCursor = TUI.ESC('7')
