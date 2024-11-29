@@ -17,7 +17,7 @@
 		"postbuild": "copy .\\src\\keys.json .\\"
 	},
 	"devDependencies": {
-		"@types/node": "^20.12.7"
+		"@types/node": "^22.10.1"
 	},
 	"files": [
 		"LICENSE",
