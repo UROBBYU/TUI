@@ -14,6 +14,7 @@ type WrapperData<K, T extends EventMap<T>> = {
 	readonly _listener: ExtendedListener<K, T>
 	_propagation: boolean
 	_once: boolean
+	_level: number
 	readonly type: Key<K, T>
 	readonly emitter: ExtendedEventEmitter<T>
 	stopPropagation(): void
@@ -38,7 +39,7 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 	protected _events: Events<Key2<T>, T> = {}
 	protected _maxListeners = 10
 
-	addListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, toEnd = true) {
+	addListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, toEnd = true, level = 0) {
 		const e = this._events
 
 		if (!(eventName as Key2<T> in e))
@@ -62,6 +63,9 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 			_once: {
 				get() { return once },
 				set(v) { once = !!v }
+			},
+			_level: {
+				get() { return level }
 			},
 			type: {
 				get() { return eventName }
@@ -94,32 +98,40 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 
 		Object.defineProperties(wrappedListener, dataProperties)
 
-		arr[toEnd ? 'push' : 'unshift'](wrappedListener as any)
+		if (toEnd) {
+			var i = arr.findLastIndex(v => v._level <= level) + 1
+			if (!i) i = 0
+		} else {
+			var i = arr.findIndex(v => v._level >= level)
+			if (!~i) i = arr.length
+		}
+		arr.splice(i, 0, wrappedListener as any)
+
 		return this
 	}
 
-	on<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, toEnd = true) {
-		return this.addListener(eventName, listener, once, toEnd)
+	on<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, toEnd = true, level = 0) {
+		return this.addListener(eventName, listener, once, toEnd, level)
 	}
 
-	once<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, toEnd = true) {
-		return this.on(eventName, listener, true, toEnd)
+	once<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, toEnd = true, level = 0) {
+		return this.on(eventName, listener, true, toEnd, level)
 	}
 
-	prependListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false) {
-		return this.on(eventName, listener, once, false)
+	prependListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, level = 0) {
+		return this.on(eventName, listener, once, false, level)
 	}
 
-	pre<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false) {
-		return this.prependListener(eventName, listener, once)
+	pre<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, level = 0) {
+		return this.prependListener(eventName, listener, once, level)
 	}
 
-	prependOnceListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>) {
-		return this.once(eventName, listener, false)
+	prependOnceListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, level = 0) {
+		return this.once(eventName, listener, false, level)
 	}
 
-	preOnce<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>) {
-		return this.prependOnceListener(eventName, listener)
+	preOnce<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, level = 0) {
+		return this.prependOnceListener(eventName, listener, level)
 	}
 
 	removeListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>) {

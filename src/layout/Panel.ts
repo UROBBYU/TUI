@@ -260,18 +260,16 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		super()
 
 		const resize = () => {
-			if (this.updateSize()) {
-				this.updateText()
+			if (this.updateSize()) this.updateText()
 				this.emit('resize', this.width, this.height)
 			}
-		}
 
-		parent.on('resize', resize)
-		parent.on('redraw', () => this.emit('redraw'))
-		this.margin.on('resize', resize)
-		this.padding.on('resize', resize)
-		this.border.on('resize', resize)
-		this.border.on('redraw', () => this.emit('redraw'))
+		parent.on('resize', resize, false, true, Infinity)
+		parent.on('redraw', () => this.emit('redraw'), false, true, Infinity)
+		this.margin.on('resize', resize, false, true, Infinity)
+		this.padding.on('resize', resize, false, true, Infinity)
+		this.border.on('resize', resize, false, true, Infinity)
+		this.border.on('redraw', () => this.emit('redraw'), false, true, Infinity)
 
 		this.updateSize()
 	}
