@@ -23,6 +23,14 @@ type WrapperData<K, T extends EventMap<T>> = {
 type ExtendedListener<K, T extends EventMap<T>> = (this: WrapperData<K, T>, ...args: Parameters<Listener<K, T>>) => void
 type Events<K extends Key2<T>, T extends EventMap<T>> = Partial<Record<K, (WrapperData<K, T> & OmitThisParameter<ExtendedListener<K, T>>)[]>>
 
+/**
+ * Suppressed function.
+ * @name SuppressedFunc
+ * @function
+ * @returns {(string[]|Map<ExtendedEventEmitter,string[]>)} List of all suppressed events or a Map with lists mapped to ExtendedEventEmitter`s that emitted them
+ */
+type SuppressedFunc = () => Map<ExtendedEventEmitter<any>, Key2<any>[]> | Key2<any>[]
+
 const asyncLocalStorage = new AsyncLocalStorage<Map<ExtendedEventEmitter<any> | null, Key2<any>[]>>()
 
 /** Custom variant of Event Emitter with useful methods from both Node.JS and Web versions. */
@@ -194,8 +202,9 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 	}
 
 	/** Alias for static method `.suppress(fn, ...targets)` with `this` as it's only target. */
-	suppress(fn: () => void): Key2<T>[] {
-		return ExtendedEventEmitter.suppress(fn, this).get(this) as any
+	suppress(fn: () => void): () => Key2<T>[] {
+		const supp = ExtendedEventEmitter.suppress(fn, this)
+		return () => supp().get(this) as any
 	}
 
 	/**
@@ -216,17 +225,17 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 	 * ExtendedEventEmitter.suppress(() => {
 	 * 	a.emit('test', 'A | All Suppressed')
 	 * 	b.emit('test', 'B | All Suppressed')
-	 * })
+	 * })()
 	 *
 	 * ExtendedEventEmitter.suppress(() => {
 	 * 	a.emit('test', 'A | A Suppressed')
 	 * 	b.emit('test', 'B | A Suppressed')
-	 * }, a)
+	 * }, a)()
 	 *
 	 * b.suppress(() => {
 	 * 	a.emit('test', 'A | B Suppressed')
 	 * 	b.emit('test', 'B | B Suppressed')
-	 * })
+	 * })()
 	 *
 	 * a.emit('test', 'A | Last')
 	 * b.emit('test', 'B | Last')
@@ -239,15 +248,17 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 	 * // A | Last
 	 * // B | Last
 	 * ```
-	 * @returns {(string[]|Map<ExtendedEventEmitter,string[]>)} List of all suppressed events or a Map with lists mapped to ExtendedEventEmitter`s that emitted them
+	 * @returns {SuppressedFunc} Suppressed function
 	 */
-	static suppress(fn: () => void): Key2<any>[]
-	static suppress(fn: () => void, ...targets: ExtendedEventEmitter<any>[]): Map<ExtendedEventEmitter<any>, Key2<any>[]>
-	static suppress(fn: () => void, ...targets: ExtendedEventEmitter<any>[]): Map<ExtendedEventEmitter<any>, Key2<any>[]> | Key2<any>[] {
+	static suppress(fn: () => void): () => Key2<any>[]
+	static suppress(fn: () => void, ...targets: ExtendedEventEmitter<any>[]): () => Map<ExtendedEventEmitter<any>, Key2<any>[]>
+	static suppress(fn: () => void, ...targets: ExtendedEventEmitter<any>[]): SuppressedFunc {
 		const tgt = targets.length ? targets : [null] as const
-		const map = new Map(tgt.map(v => [v, []]))
-		asyncLocalStorage.run(map, fn)
 
-		return map.get(null) ?? map as Map<ExtendedEventEmitter<any>, Key2<any>[]>
+		return () => asyncLocalStorage.run(new Map(tgt.map(v => [v, []])), () => {
+			fn()
+			const map = asyncLocalStorage.getStore()!
+			return map.get(null) ?? map as Map<ExtendedEventEmitter<any>, Key2<any>[]>
+		})
 	}
 }

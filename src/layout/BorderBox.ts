@@ -133,7 +133,7 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 	set inline(v: number | BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.left = this.right = v
-		})
+		})()
 
 		if (events.includes('resize')) this.emit('resize')
 		else if (events.includes('redraw')) this.emit('redraw')
@@ -142,7 +142,7 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 	set block(v: number | BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.top = this.bottom = v
-		})
+		})()
 
 		if (events.includes('resize')) this.emit('resize')
 		else if (events.includes('redraw')) this.emit('redraw')
@@ -151,7 +151,7 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 	set all(v: number | BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.inline = this.block = v
-		})
+		})()
 
 		if (events.includes('resize')) this.emit('resize')
 		else if (events.includes('redraw')) this.emit('redraw')
