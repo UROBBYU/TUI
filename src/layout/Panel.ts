@@ -5,6 +5,7 @@ import MetricBox from './MetricBox'
 
 type PanelEvents = {
 	resize: [width: number, height: number]
+	redraw: []
 }
 
 type CustomBorderStyle = {
@@ -236,22 +237,21 @@ const buildBorderBlock = (
 }
 
 export class Panel extends ExtendedEventEmitter<PanelEvents> {
+	#color: Color = 'default'
+	#bgColor: Color = 'default'
 	#textLines: string[] = ['']
 	#innerText = ''
 	#wordWrap = false
 	#tabSize = 4
 	#scroll = 0
-	#maxWidth = Infinity
+	#scrollDirection: 'up' | 'down' = 'down'
+	#minWidth = 1
+	#minHeight = 1
 	#width = NaN
 	#height = NaN
+	#maxWidth = Infinity
+	#maxHeight = Infinity
 
-	// TODO: Intercept parameters
-	scrollDirection: 'up' | 'down' = 'down'
-	color: Color = 'default'
-	bgColor: Color = 'default'
-	minWidth = 1
-	minHeight = 1
-	maxHeight = Infinity
 	margin = new MetricBox()
 	padding = new MetricBox()
 	border = new BorderBox()
@@ -267,9 +267,11 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		}
 
 		parent.on('resize', resize)
+		parent.on('redraw', () => this.emit('redraw'))
 		this.margin.on('resize', resize)
 		this.padding.on('resize', resize)
 		this.border.on('resize', resize)
+		this.border.on('redraw', () => this.emit('redraw'))
 
 		this.updateSize()
 	}
@@ -293,16 +295,16 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		const lastWidth = this.#width
 		const lastHeight = this.#height
 
-		this.#width = Math.min(this.maxWidth, avWidth)
-		this.#height = Math.min(this.maxHeight, avHeight)
+		this.#width = Math.min(this.#maxWidth, avWidth)
+		this.#height = Math.min(this.#maxHeight, avHeight)
 
 		return lastWidth !== this.#width || lastHeight !== this.#height
 	}
 
 	draw() {
-		this.tui.style({ bgColor: this.bgColor })
+		this.tui.style({ bgColor: this.#bgColor })
 		this.drawBorder()
-		this.tui.style({ color: this.color })
+		this.tui.style({ color: this.#color })
 		this.drawText()
 		this.tui.style()
 
@@ -311,8 +313,8 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 
 	drawBorder() {
 		if (
-			this.width < Math.max(0, this.minWidth) ||
-			this.height < Math.max(0, this.minHeight)
+			this.width < Math.max(0, this.#minWidth) ||
+			this.height < Math.max(0, this.#minHeight)
 		) return this
 
 		const { top: bT, right: bR, bottom: bB, left: bL } = this.border
@@ -371,11 +373,11 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 
 	drawText() {
 		if (
-			this.width < Math.max(0, this.minWidth) ||
-			this.height < Math.max(0, this.minHeight)
+			this.width < Math.max(0, this.#minWidth) ||
+			this.height < Math.max(0, this.#minHeight)
 		) return this
 
-		const shift = Math.max(0, Math.min(this.scrollDirection == 'down' ? this.scroll : this.#textLines.length - this.height - this.scroll, this.#textLines.length - this.height))
+		const shift = Math.max(0, Math.min(this.#scrollDirection == 'down' ? this.#scroll : this.#textLines.length - this.height - this.#scroll, this.#textLines.length - this.height))
 
 		const pad = this.absX > 1 ? TUI.cursorRight(this.absX - 1) : ''
 		const frame = TUI.cursorPosition(this.absY, this.absX) + [...this.#textLines].splice(shift, this.height).join(`\n${pad}`)
@@ -387,6 +389,8 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		return this
 	}
 
+	erase() { this.tui.eraseRect(this.absY, this.absX, this.#width, this.#height) }
+
 	updateText() {
 		this.#textLines = TUI.fitString(
 			this.innerText,
@@ -394,9 +398,9 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 			this.width,
 			this.wordWrap,
 			this.tabSize,
-			TUI.style({ color: this.color })
+			TUI.style({ color: this.#color })
 		)
-		this.scroll = this.scroll
+		this.scroll = this.#scroll
 	}
 
 	get tui(): TUI {
@@ -420,32 +424,77 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 			this.padding.top
 	}
 
+	get minWidth() { return this.#minWidth }
+	set minWidth(v) {
+		if (this.#minWidth === v) return
+		this.#minWidth = v
+		this.emit('redraw')
+	}
+
+	get minHeight() { return this.#minHeight }
+	set minHeight(v) {
+		if (this.#minHeight === v) return
+		this.#minHeight = v
+		this.emit('redraw')
+	}
+
 	get width() { return this.#width }
 
 	get height() { return this.#height }
 
+	get maxWidth() { return this.#maxWidth }
+	set maxWidth(v) {
+		this.#maxWidth = v
+		if (!this.updateSize()) return
+		this.updateText()
+		this.emit('resize', this.width, this.height)
+	}
+
+	get maxHeight() { return this.#maxHeight }
+	set maxHeight(v) {
+		this.#maxHeight = v
+		if (!this.updateSize()) return
+		this.updateText()
+		this.emit('resize', this.width, this.height)
+	}
+
+	get color() { return this.#color }
+	set color(v) {
+		if (this.#color === v) return
+		this.#color = v
+		this.updateText()
+		this.emit('redraw')
+	}
+
+	get bgColor() { return this.#bgColor }
+	set bgColor(v) {
+		if (this.#bgColor === v) return
+		this.#bgColor = v
+		this.emit('redraw')
+	}
+
 	get innerText() { return this.#innerText }
 	set innerText(v) {
-		if (this.#innerText !== v) {
-			this.#innerText = v
-			this.updateText()
-		}
+		if (this.#innerText === v) return
+		this.#innerText = v
+		this.updateText()
+		this.emit('redraw')
 	}
 
 	get wordWrap() { return this.#wordWrap }
 	set wordWrap(v) {
-		if (this.#wordWrap !== v) {
-			this.#wordWrap = v
-			this.updateText()
-		}
+		if (this.#wordWrap === v) return
+		this.#wordWrap = v
+		this.updateText()
+		this.emit('redraw')
 	}
 
 	get tabSize() { return this.#tabSize }
 	set tabSize(v) {
-		if (this.#tabSize !== v) {
-			this.#tabSize = v
-			this.updateText()
-		}
+		if (this.#tabSize === v) return
+		this.#tabSize = v
+		this.updateText()
+		this.emit('redraw')
 	}
 
 	/** Either percent [0; 1) or line index. */
@@ -453,15 +502,15 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 	set scroll(v) {
 		v = Math.max(0, v)
 		if (v >= 1) v = Math.min(Math.round(v), this.#textLines.length - this.#height)
+		if (this.#scroll === v) return
 		this.#scroll = v
+		this.emit('redraw')
 	}
 
-	get maxWidth() { return this.#maxWidth }
-	set maxWidth(v) {
-		this.#maxWidth = v
-		if (this.updateSize()) {
-			this.updateText()
-			this.emit('resize', this.width, this.height)
-		}
+	get scrollDirection() { return this.#scrollDirection }
+	set scrollDirection(v) {
+		if (this.#scrollDirection === v) return
+		this.#scrollDirection = v
+		this.emit('redraw')
 	}
 }
