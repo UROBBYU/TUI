@@ -261,8 +261,8 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 
 		const resize = () => {
 			if (this.updateSize()) this.updateText()
-				this.emit('resize', this.width, this.height)
-			}
+			this.emit('resize', this.width, this.height)
+		}
 
 		parent.on('resize', resize, false, true, Infinity)
 		parent.on('redraw', () => this.emit('redraw'), false, true, Infinity)
@@ -301,15 +301,15 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 
 	draw() {
 		this.tui.style({ bgColor: this.#bgColor })
-		this.drawBorder()
+		this.drawBorder(false)
 		this.tui.style({ color: this.#color })
-		this.drawText()
+		this.drawText(false)
 		this.tui.style()
 
 		return this
 	}
 
-	drawBorder() {
+	drawBorder(applyStyle = true) {
 		if (
 			this.width < Math.max(0, this.#minWidth) ||
 			this.height < Math.max(0, this.#minHeight)
@@ -362,14 +362,16 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		const pad = bAbsX > 1 ? TUI.cursorRight(bAbsX - 1) : ''
 		const frame = TUI.cursorPosition(bAbsY, bAbsX) + lines.join(`\n${pad}`) + TUI.style()
 
+		if (applyStyle) this.tui.style({ bgColor: this.#bgColor })
 		this.tui.saveCursor()
 		.write(frame)
 		.restoreCursor()
+		if (applyStyle) this.tui.style()
 
 		return this
 	}
 
-	drawText() {
+	drawText(applyStyle = true) {
 		if (
 			this.width < Math.max(0, this.#minWidth) ||
 			this.height < Math.max(0, this.#minHeight)
@@ -380,14 +382,25 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		const pad = this.absX > 1 ? TUI.cursorRight(this.absX - 1) : ''
 		const frame = TUI.cursorPosition(this.absY, this.absX) + [...this.#textLines].splice(shift, this.height).join(`\n${pad}`)
 
+		if (applyStyle) this.tui.style({ bgColor: this.#bgColor, color: this.#color })
 		this.tui.saveCursor()
 		.write(frame)
 		.restoreCursor()
+		if (applyStyle) this.tui.style()
 
 		return this
 	}
 
-	erase() { this.tui.eraseRect(this.absY, this.absX, this.#width, this.#height) }
+	erase() {
+		this.tui.eraseRect(this.parent.absY, this.parent.absX, this.parent.width, this.parent.height)
+
+		return this
+	}
+	eraseInner() {
+		this.tui.eraseRect(this.absY, this.absX, this.#width, this.#height)
+
+		return this
+	}
 
 	updateText() {
 		this.#textLines = TUI.fitString(
