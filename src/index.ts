@@ -545,6 +545,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 						codes.push(opt ? (opt === 2 ? d : t) : f)
 				}
 
+				const dc = (cnl: string) => cnl.length === 2 ? cnl : cnl + cnl
+
 				const cc = (clr?: Color, off = 0) => {
 					if (clr !== undefined) {
 						if (clr === 'default') codes.push(39 + off)
@@ -554,14 +556,14 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 							codes.push(38 + off, 5, clr)
 						} else if (clr.startsWith('#')) {
-							const regexArr = /^#([0-F]{2})([0-F]{2})([0-F]{2})$/i.exec(clr)
-							if (!regexArr)
+							const regexArr = /^#([0-F]{1,2})([0-F]{1,2})([0-F]{1,2})$/i.exec(clr)
+							if (!regexArr || !(clr.length === 4 || clr.length === 7))
 								throw new Error(`Invalid hex color: ${clr}`, { cause: clr })
 
 							codes.push(38 + off, 2,
-								parseInt(regexArr[1], 16),
-								parseInt(regexArr[2], 16),
-								parseInt(regexArr[3], 16)
+								parseInt(dc(regexArr[1]), 16),
+								parseInt(dc(regexArr[2]), 16),
+								parseInt(dc(regexArr[3]), 16)
 							)
 						} else {
 							const colorArr = clr.split('-')
