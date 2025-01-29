@@ -10,19 +10,20 @@ type Key<K, T> = IfDef<T, string | symbol, K | keyof T>
 type Key2<T> = IfDef<T, string | symbol, keyof T>
 type Listener<K, T> = IfDef<T, (...args: any[]) => void, (K extends keyof T ? (T[K] extends unknown[] ? (...args: T[K]) => void : never) : never)>
 
-type WrapperData<K, T extends EventMap<T>> = {
-	readonly _listener: ExtendedListener<K, T>
+type WrapperData<K, T extends EventMap<T>, E extends ExtendedEventEmitter<T>> = {
+	readonly _listener: ExtendedListener<K, T, E>
 	_propagation: boolean
+	_default: boolean
 	_once: boolean
 	_level: number
 	readonly type: Key<K, T>
-	readonly emitter: ExtendedEventEmitter<T>
+	readonly emitter: E
 	stopPropagation(): void
-	stopImmediatePropagation(): void
+	preventDefault(): void
 	remove(): void
 }
-type ExtendedListener<K, T extends EventMap<T>> = (this: WrapperData<K, T>, ...args: Parameters<Listener<K, T>>) => void
-type Events<K extends Key2<T>, T extends EventMap<T>> = Partial<Record<K, (WrapperData<K, T> & OmitThisParameter<ExtendedListener<K, T>>)[]>>
+type ExtendedListener<K, T extends EventMap<T>, E extends ExtendedEventEmitter<T>> = (this: WrapperData<K, T, E>, ...args: Parameters<Listener<K, T>>) => void
+type Events<K extends Key2<T>, T extends EventMap<T>, E extends ExtendedEventEmitter<T>> = Partial<Record<K, (WrapperData<K, T, E> & OmitThisParameter<ExtendedListener<K, T, E>>)[]>>
 
 /**
  * Suppressed function.
@@ -36,10 +37,10 @@ const asyncLocalStorage = new AsyncLocalStorage<Map<ExtendedEventEmitter<any> | 
 
 /** Custom variant of Event Emitter with useful methods from both Node.JS and Web versions. */
 export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMap> implements EventEmitter<T> {
-	protected _events: Events<Key2<T>, T> = {}
+	protected _events: Events<Key2<T>, T, this> = {}
 	protected _maxListeners = 10
 
-	addListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, toEnd = true, level = 0) {
+	addListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, once = false, toEnd = true, level = 0) {
 		const e = this._events
 
 		if (!(eventName as Key2<T> in e))
@@ -50,7 +51,8 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		if (this._maxListeners && this._maxListeners <= arr.length)
 			console.warn(`MaxListenersExceededWarning: Possible ExtendedEventEmitter memory leak detected. ${arr.length + 1} ${eventName} listeners added to [ExtendedEventEmitter]. Use emitter.setMaxListeners() to increase limit`)
 
-		let propagation = true
+		let propagation: boolean
+		let def: boolean
 		const emitter = this
 		const dataProperties = {
 			_listener: {
@@ -59,6 +61,10 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 			_propagation: {
 				get() { return propagation },
 				set(v) { propagation = !!v }
+			},
+			_default: {
+				get() { return def },
+				set(v) { def = !!v }
 			},
 			_once: {
 				get() { return once },
@@ -76,16 +82,18 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 			stopPropagation: {
 				get() { return () => { propagation = false } }
 			},
-			stopImmediatePropagation: {
-				get() { return () => { propagation = false } }
+			preventDefault: {
+				get() { return () => { def = false } }
 			},
 			remove: {
 				get() { return () => { once = true } }
 			}
 		} as PropertyDescriptorMap
-		const data = Object.defineProperties({}, dataProperties) as WrapperData<K, T>
+		type W = WrapperData<K, T, this>
+		const data = Object.defineProperties({}, dataProperties) as W
 
-		function wrapper(this: WrapperData<K, T>, ...args: Parameters<typeof listener>) {
+		function wrapper(this: W, ...args: Parameters<typeof listener>) {
+			propagation = true
 			listener.apply(this, args)
 			if (this._once) {
 				const i = arr.indexOf(wrappedListener as any)
@@ -110,31 +118,31 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		return this
 	}
 
-	on<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, toEnd = true, level = 0) {
-		return this.addListener(eventName, listener, once, toEnd, level)
+	on<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, level = 0) {
+		return this.addListener(eventName, listener, false, true, level)
 	}
 
-	once<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, toEnd = true, level = 0) {
-		return this.on(eventName, listener, true, toEnd, level)
+	once<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, level = 0) {
+		return this.addListener(eventName, listener, true, true, level)
 	}
 
-	prependListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, level = 0) {
-		return this.on(eventName, listener, once, false, level)
+	prependListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, once = false, level = 0) {
+		return this.addListener(eventName, listener, once, false, level)
 	}
 
-	pre<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, once = false, level = 0) {
-		return this.prependListener(eventName, listener, once, level)
+	pre<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, level = 0) {
+		return this.prependListener(eventName, listener, false, level)
 	}
 
-	prependOnceListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, level = 0) {
-		return this.once(eventName, listener, false, level)
+	prependOnceListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, level = 0) {
+		return this.prependListener(eventName, listener, true, level)
 	}
 
-	preOnce<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>, level = 0) {
+	preOnce<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>, level = 0) {
 		return this.prependOnceListener(eventName, listener, level)
 	}
 
-	removeListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>) {
+	removeListener<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>) {
 		const arr = this._events[eventName as Key2<T>]
 
 		if (arr) {
@@ -145,7 +153,7 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		return this
 	}
 
-	off<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T>) {
+	off<K>(eventName: Key<K, T>, listener: ExtendedListener<K, T, this>) {
 		return this.removeListener(eventName, listener)
 	}
 
@@ -164,7 +172,7 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		return this._maxListeners
 	}
 
-	rawListeners<K>(eventName: Key<K, T>): (WrapperData<K, T> & Listener<K, T>)[] {
+	rawListeners<K>(eventName: Key<K, T>): (WrapperData<K, T, this> & Listener<K, T>)[] {
 		const arr = this._events[eventName as Key2<T>] ?? []
 		return [...arr] as any
 	}
@@ -173,7 +181,7 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		return this.rawListeners(eventName).map(e => e._listener) as any
 	}
 
-	emit<K>(eventName: Key<K, T>, ...args: Args<K, T>): boolean {
+	emitDef<K>(eventName: Key<K, T>, def = true, ...args: Args<K, T>): boolean {
 		const suppMap = asyncLocalStorage.getStore()
 		const suppAll = suppMap?.get(null)
 		const suppThis = suppMap?.get(this)
@@ -186,16 +194,22 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 
 		if (eventName as Key2<T> in this._events) {
 			for (const e of [...this._events[eventName as Key2<T>]!]) {
+				e._default = def
 				// @ts-expect-error TS is really stupid
 				e(...args)
+				def &&= e._default
 				if (!e._propagation) {
 					e._propagation = true
 					break
 				}
 			}
-			return true
 		}
-		return false
+
+		return def
+	}
+
+	emit<K>(eventName: Key<K, T>, ...args: Args<K, T>): boolean {
+		return this.emitDef(eventName, true, ...args)
 	}
 
 	listenerCount<K>(eventName: Key<K, T>, listener?: Listener<K, T>): number {
