@@ -4,20 +4,21 @@ import { Color } from '..'
 
 type BorderCornerParams = [style: BorderStyle, color?: Color]
 type BorderEdgeParams = [width?: number, style?: BorderStyle, color?: Color, fill?: BorderFill]
-type BorderBoxEvents = { redraw: [], resize: [] }
 
 type SimpleEdge = {
+	width: number
 	style: BorderStyle
 	color: Color
 	fill: BorderFill
 }
 
 const compEdges = (e1: SimpleEdge, e2: SimpleEdge) =>
+	e1.width === e2.width &&
 	e1.style === e2.style &&
 	e1.color === e2.color &&
 	e1.fill === e2.fill
 
-export class BorderCorner extends ExtendedEventEmitter<BorderBoxEvents> {
+export class BorderCorner extends ExtendedEventEmitter<{ change: [] }> {
 	#style?: BorderStyle
 	#color?: Color
 
@@ -35,14 +36,14 @@ export class BorderCorner extends ExtendedEventEmitter<BorderBoxEvents> {
 	set style(v) {
 		if (this.#style === v) return
 		this.#style = v
-		this.emit('redraw')
+		this.emit('change')
 	}
 
 	get color() { return this.#color }
 	set color(v) {
 		if (this.#color === v) return
 		this.#color = v
-		this.emit('redraw')
+		this.emit('change')
 	}
 }
 
@@ -66,14 +67,14 @@ export class BorderEdge extends BorderCorner {
 	set width(v) {
 		if (this.#width === v) return
 		this.#width = v
-		this.emit('resize')
+		this.emit('change')
 	}
 
 	get fill() { return this.#fill }
 	set fill(v) {
 		if (this.#fill === v) return
 		this.#fill = v
-		this.emit('redraw')
+		this.emit('change')
 	}
 
 	get style() { return super.style! }
@@ -102,8 +103,8 @@ export class BorderBlock extends BorderEdge {
 	) {
 		super(width, style, color, fill)
 
-		this.#left.on('redraw', () => this.emit('redraw'))
-		this.#right.on('redraw', () => this.emit('redraw'))
+		this.#left.on('change', () => this.emit('change'))
+		this.#right.on('change', () => this.emit('change'))
 	}
 
 	get left(): BorderCorner { return this.#left }
@@ -111,7 +112,7 @@ export class BorderBlock extends BorderEdge {
 		if (this.suppress(() => {
 			this.#left.style = v[0]
 			this.#left.color = v[1] ?? this.#left.color
-		})().length) this.emit('redraw')
+		})().length) this.emit('change')
 	}
 
 	get right(): BorderCorner { return this.#right }
@@ -119,11 +120,11 @@ export class BorderBlock extends BorderEdge {
 		if (this.suppress(() => {
 			this.#right.style = v[0]
 			this.#right.color = v[1] ?? this.#right.color
-		})().length) this.emit('redraw')
+		})().length) this.emit('change')
 	}
 }
 
-export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
+export default class BorderBox extends ExtendedEventEmitter<{ change: [] }> {
 	#top: BorderBlock
 	#right: BorderEdge
 	#bottom: BorderBlock
@@ -138,20 +139,16 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 		super()
 
 		this.#top = new BorderBlock(width, style, color, fill)
-		.on('resize', () => this.emit('resize'))
-		.on('redraw', () => this.emit('redraw'))
+		.on('change', () => this.emit('change'))
 
 		this.#right = new BorderEdge(width, style, color, fill)
-		.on('resize', () => this.emit('resize'))
-		.on('redraw', () => this.emit('redraw'))
+		.on('change', () => this.emit('change'))
 
 		this.#bottom = new BorderBlock(width, style, color, fill)
-		.on('resize', () => this.emit('resize'))
-		.on('redraw', () => this.emit('redraw'))
+		.on('change', () => this.emit('change'))
 
 		this.#left = new BorderEdge(width, style, color, fill)
-		.on('resize', () => this.emit('resize'))
-		.on('redraw', () => this.emit('redraw'))
+		.on('change', () => this.emit('change'))
 	}
 
 	get top(): BorderBlock { return this.#top }
@@ -165,8 +162,7 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 			this.#top.fill = v[3] ?? this.#top.fill
 		} else this.#top.width = v
 
-		if (ref.width !== this.#top.width) this.emit('resize')
-		else if (!compEdges(ref, this.#top)) this.emit('redraw')
+		if (!compEdges(ref, this.#top)) this.emit('change')
 	}
 
 	get right(): BorderEdge { return this.#right }
@@ -180,8 +176,7 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 			this.#right.fill = v[3] ?? this.#right.fill
 		} else this.#right.width = v
 
-		if (ref.width !== this.#right.width) this.emit('resize')
-		else if (!compEdges(ref, this.#right)) this.emit('redraw')
+		if (!compEdges(ref, this.#right)) this.emit('change')
 	}
 
 	get bottom(): BorderBlock { return this.#bottom }
@@ -195,8 +190,7 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 			this.#bottom.fill = v[3] ?? this.#bottom.fill
 		} else this.#bottom.width = v
 
-		if (ref.width !== this.#bottom.width) this.emit('resize')
-		else if (!compEdges(ref, this.#bottom)) this.emit('redraw')
+		if (!compEdges(ref, this.#bottom)) this.emit('change')
 	}
 
 	get left(): BorderEdge { return this.#left }
@@ -210,34 +204,33 @@ export default class BorderBox extends ExtendedEventEmitter<BorderBoxEvents> {
 			this.#left.fill = v[3] ?? this.#left.fill
 		} else this.#left.width = v
 
-		if (ref.width !== this.#left.width) this.emit('resize')
-		else if (!compEdges(ref, this.#left)) this.emit('redraw')
+		if (!compEdges(ref, this.#left)) this.emit('change')
 	}
 
+	get inline(): number { return this.#left.width + this.#right.width }
 	set inline(v: number | BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.left = this.right = v
 		})()
 
-		if (events.includes('resize')) this.emit('resize')
-		else if (events.includes('redraw')) this.emit('redraw')
+		if (events.length) this.emit('change')
 	}
 
+	get block(): number { return this.#top.width + this.#bottom.width }
 	set block(v: number | BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.top = this.bottom = v
 		})()
 
-		if (events.includes('resize')) this.emit('resize')
-		else if (events.includes('redraw')) this.emit('redraw')
+		if (events.length) this.emit('change')
 	}
 
+	get all(): number { return this.inline + this.block }
 	set all(v: number | BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.inline = this.block = v
 		})()
 
-		if (events.includes('resize')) this.emit('resize')
-		else if (events.includes('redraw')) this.emit('redraw')
+		if (events.length) this.emit('change')
 	}
 }

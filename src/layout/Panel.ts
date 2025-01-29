@@ -3,10 +3,19 @@ import ExtendedEventEmitter from '../events'
 import BorderBox from './BorderBox'
 import MetricBox from './MetricBox'
 
-type PanelEvents = {
-	resize: [width: number, height: number]
-	redraw: []
+type ChangeArgN<N extends string, V> = {
+	name: N
+	value: V
 }
+type ChangeArg<N extends string, V, L = V> = ChangeArgN<N, V> & {
+	lastValue: L
+}
+type ChangeProp =
+	ChangeArg<'size', [width: number, height: number]> |
+	ChangeArg<`${'min' | 'max'}${'Width' | 'Height'}`, number> |
+	ChangeArgN<'margin' | 'padding', MetricBox> |
+	ChangeArgN<'border', BorderBox> |
+	ChangeArg<'bgColor', Color | 'transparent'>
 
 type CustomBorderStyle = {
 	empty: string
@@ -236,15 +245,8 @@ const buildBorderBlock = (
 	return lines
 }
 
-export class Panel extends ExtendedEventEmitter<PanelEvents> {
-	#color: Color = 'default'
-	#bgColor: Color = 'default'
-	#textLines: string[] = ['']
-	#innerText = ''
-	#wordWrap = false
-	#tabSize = 4
-	#scroll = 0
-	#scrollDirection: 'up' | 'down' = 'down'
+export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], draw: [] }> {
+	#bgColor: Color | 'transparent' = 'transparent'
 	#minWidth = 1
 	#minHeight = 1
 	#width = NaN
@@ -252,67 +254,88 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 	#maxWidth = Infinity
 	#maxHeight = Infinity
 
+	#drawPropagate = true
+
 	margin = new MetricBox()
 	padding = new MetricBox()
 	border = new BorderBox()
 
 	constructor(public readonly parent: Panel | TUI) {
 		super()
+		const me = this
 
-		const resize = () => {
-			if (this.updateSize()) this.updateText()
-			this.emit('resize', this.width, this.height)
-		}
+		parent.on('resize', () => me.updateSize())
+		parent.on('change', prop => {
+			if (prop.name === 'size') me.updateSize()
+		})
+		parent.on('draw', () => me.draw())
+		me.margin.on('change', () => {
+			me.emit('change', {
+				name: 'margin',
+				value: me.margin
+			})
+			me.updateSize()
+		})
+		me.padding.on('change', () => {
+			me.emit('change', {
+				name: 'padding',
+				value: me.padding
+			})
+			me.updateSize()
+		})
+		me.border.on('change', () => {
+			me.emit('change', {
+				name: 'border',
+				value: me.border
+			})
+			me.updateSize()
+		})
 
-		parent.on('resize', resize, false, true, Infinity)
-		parent.on('redraw', () => this.emit('redraw'), false, true, Infinity)
-		this.margin.on('resize', resize, false, true, Infinity)
-		this.padding.on('resize', resize, false, true, Infinity)
-		this.border.on('resize', resize, false, true, Infinity)
-		this.border.on('redraw', () => this.emit('redraw'), false, true, Infinity)
+		me.on('change', function(prop) {
+			switch (prop.name) {
+				case 'size':
+					[me.#width, me.#height] = prop.value
+					break
+				case 'minWidth':
+					me.#minWidth = prop.value
+					break
+				case 'minHeight':
+					me.#minHeight = prop.value
+					break
+				case 'maxWidth':
+					me.#maxWidth = prop.value
+					break
+				case 'maxHeight':
+					me.#maxHeight = prop.value
+					break
+				case 'bgColor':
+					me.#bgColor = prop.value
+			}
+		})
 
-		this.updateSize()
+		me.on('draw', function() {
+			if (!this._default) return
+
+			me.tui.style({ bgColor: me._realBgColor })
+			me.drawBorder(false)
+			me.tui.style()
+
+			if (!me.#drawPropagate) this.stopPropagation()
+		})
+
+		me.updateSize()
 	}
 
-	updateSize() {
-		let avWidth = this.parent.width -
-		this.margin.left -
-		this.margin.right -
-		this.border.left.width -
-		this.border.right.width -
-		this.padding.left -
-		this.padding.right
-		let avHeight = this.parent.height -
-		this.margin.top -
-		this.margin.bottom -
-		this.border.top.width -
-		this.border.bottom.width -
-		this.padding.top -
-		this.padding.bottom
-
-		const lastWidth = this.#width
-		const lastHeight = this.#height
-
-		this.#width = Math.min(this.#maxWidth, avWidth)
-		this.#height = Math.min(this.#maxHeight, avHeight)
-
-		return lastWidth !== this.#width || lastHeight !== this.#height
-	}
-
-	draw() {
-		this.tui.style({ bgColor: this.#bgColor })
-		this.drawBorder(false)
-		this.tui.style({ color: this.#color })
-		this.drawText(false)
-		this.tui.style()
-
+	draw(propagate = true) {
+		this.#drawPropagate = propagate
+		this.emit('draw')
 		return this
 	}
 
 	drawBorder(applyStyle = true) {
 		if (
-			this.width < Math.max(0, this.#minWidth) ||
-			this.height < Math.max(0, this.#minHeight)
+			this.#width < Math.max(0, this.#minWidth) ||
+			this.#height < Math.max(0, this.#minHeight)
 		) return this
 
 		const { top: bT, right: bR, bottom: bB, left: bL } = this.border
@@ -328,8 +351,8 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 			bottomright: getBorderStyle(bB.right.style ?? bB.style)
 		}
 
-		const width = this.width
-		const height = this.height
+		const width = this.#width
+		const height = this.#height
 		const pWidth = this.padding.left + width + this.padding.right
 		const pHeight = this.padding.top + height + this.padding.bottom
 		const bAbsX = this.parent.absX + this.margin.left
@@ -355,14 +378,14 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 
 		const lines: string[] = [
 			...lT.map((l, i) => cTL+lTL[i] + cT+l + cTR+lTR[i]),
-			...lL.map((l, i) => cL+l + TUI.cursorRight(pWidth) + cR+lR[i]),
+			...lL.map((l, i) => cL+l + ' '.repeat(pWidth) + cR+lR[i]),
 			...lB.map((l, i) => cBL+lBL[i] + cB+l + cBR+lBR[i])
 		]
 
 		const pad = bAbsX > 1 ? TUI.cursorRight(bAbsX - 1) : ''
 		const frame = TUI.cursorPosition(bAbsY, bAbsX) + lines.join(`\n${pad}`) + TUI.style()
 
-		if (applyStyle) this.tui.style({ bgColor: this.#bgColor })
+		if (applyStyle) this.tui.style({ bgColor: this._realBgColor })
 		this.tui.saveCursor()
 		.write(frame)
 		.restoreCursor()
@@ -371,47 +394,33 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 		return this
 	}
 
-	drawText(applyStyle = true) {
-		if (
-			this.width < Math.max(0, this.#minWidth) ||
-			this.height < Math.max(0, this.#minHeight)
-		) return this
+	updateSize() {
+		let avWidth = this.parent.width -
+		this.margin.left -
+		this.margin.right -
+		this.border.left.width -
+		this.border.right.width -
+		this.padding.left -
+		this.padding.right
+		let avHeight = this.parent.height -
+		this.margin.top -
+		this.margin.bottom -
+		this.border.top.width -
+		this.border.bottom.width -
+		this.padding.top -
+		this.padding.bottom
 
-		const shift = Math.max(0, Math.min(this.#scrollDirection == 'down' ? this.#scroll : this.#textLines.length - this.height - this.#scroll, this.#textLines.length - this.height))
+		const width = Math.min(this.#maxWidth, avWidth)
+		const height = Math.min(this.#maxHeight, avHeight)
 
-		const pad = this.absX > 1 ? TUI.cursorRight(this.absX - 1) : ''
-		const frame = TUI.cursorPosition(this.absY, this.absX) + [...this.#textLines].splice(shift, this.height).join(`\n${pad}`)
+		if (width === this.#width && height === this.#height) return false
 
-		if (applyStyle) this.tui.style({ bgColor: this.#bgColor, color: this.#color })
-		this.tui.saveCursor()
-		.write(frame)
-		.restoreCursor()
-		if (applyStyle) this.tui.style()
-
-		return this
-	}
-
-	erase() {
-		this.tui.eraseRect(this.parent.absY, this.parent.absX, this.parent.width, this.parent.height)
-
-		return this
-	}
-	eraseInner() {
-		this.tui.eraseRect(this.absY, this.absX, this.#width, this.#height)
-
-		return this
-	}
-
-	updateText() {
-		this.#textLines = TUI.fitString(
-			this.innerText,
-			this.width,
-			this.width,
-			this.wordWrap,
-			this.tabSize,
-			TUI.style({ color: this.#color })
-		)
-		this.scroll = this.#scroll
+		this.emit('change', {
+			name: 'size',
+			value: [width, height],
+			lastValue: [this.#width, this.#height]
+		})
+		return true
 	}
 
 	get tui(): TUI {
@@ -438,15 +447,21 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 	get minWidth() { return this.#minWidth }
 	set minWidth(v) {
 		if (this.#minWidth === v) return
-		this.#minWidth = v
-		this.emit('redraw')
+		this.emit('change', {
+			name: 'minWidth',
+			value: v,
+			lastValue: this.#minWidth
+		})
 	}
 
 	get minHeight() { return this.#minHeight }
 	set minHeight(v) {
 		if (this.#minHeight === v) return
-		this.#minHeight = v
-		this.emit('redraw')
+		this.emit('change', {
+			name: 'minHeight',
+			value: v,
+			lastValue: this.#minHeight
+		})
 	}
 
 	get width() { return this.#width }
@@ -455,73 +470,37 @@ export class Panel extends ExtendedEventEmitter<PanelEvents> {
 
 	get maxWidth() { return this.#maxWidth }
 	set maxWidth(v) {
-		this.#maxWidth = v
-		if (!this.updateSize()) return
-		this.updateText()
-		this.emit('resize', this.width, this.height)
+		if (this.#maxWidth === v) return
+		this.emit('change', {
+			name: 'maxWidth',
+			value: v,
+			lastValue: this.#maxWidth
+		})
+		this.updateSize()
 	}
 
 	get maxHeight() { return this.#maxHeight }
 	set maxHeight(v) {
-		this.#maxHeight = v
-		if (!this.updateSize()) return
-		this.updateText()
-		this.emit('resize', this.width, this.height)
-	}
-
-	get color() { return this.#color }
-	set color(v) {
-		if (this.#color === v) return
-		this.#color = v
-		this.updateText()
-		this.emit('redraw')
+		if (this.#maxHeight === v) return
+		this.emit('change', {
+			name: 'maxHeight',
+			value: v,
+			lastValue: this.#maxHeight
+		})
+		this.updateSize()
 	}
 
 	get bgColor() { return this.#bgColor }
 	set bgColor(v) {
 		if (this.#bgColor === v) return
-		this.#bgColor = v
-		this.emit('redraw')
+		this.emit('change', {
+			name: 'bgColor',
+			value: v,
+			lastValue: this.#bgColor
+		})
 	}
 
-	get innerText() { return this.#innerText }
-	set innerText(v) {
-		if (this.#innerText === v) return
-		this.#innerText = v
-		this.updateText()
-		this.emit('redraw')
-	}
-
-	get wordWrap() { return this.#wordWrap }
-	set wordWrap(v) {
-		if (this.#wordWrap === v) return
-		this.#wordWrap = v
-		this.updateText()
-		this.emit('redraw')
-	}
-
-	get tabSize() { return this.#tabSize }
-	set tabSize(v) {
-		if (this.#tabSize === v) return
-		this.#tabSize = v
-		this.updateText()
-		this.emit('redraw')
-	}
-
-	/** Either percent [0; 1) or line index. */
-	get scroll() { return this.#scroll }
-	set scroll(v) {
-		v = Math.max(0, v)
-		if (v >= 1) v = Math.min(Math.round(v), this.#textLines.length - this.#height)
-		if (this.#scroll === v) return
-		this.#scroll = v
-		this.emit('redraw')
-	}
-
-	get scrollDirection() { return this.#scrollDirection }
-	set scrollDirection(v) {
-		if (this.#scrollDirection === v) return
-		this.#scrollDirection = v
-		this.emit('redraw')
+	get _realBgColor(): Color {
+		return this.#bgColor === 'transparent' ? (this.parent instanceof TUI ? 'default' : this.parent._realBgColor) : this.#bgColor
 	}
 }

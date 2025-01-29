@@ -1,8 +1,6 @@
 import ExtendedEventEmitter from '../events'
 
-type MetricBoxEvents = { resize: [] }
-
-export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
+export default class MetricBox extends ExtendedEventEmitter<{ change: [] }> {
 	#top: number
 	#right: number
 	#bottom: number
@@ -30,7 +28,7 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 	set top(v) {
 		if (this.#top !== v) {
 			this.#top = v
-			this.emit('resize')
+			this.emit('change')
 		}
 	}
 
@@ -38,7 +36,7 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 	set right(v) {
 		if (this.#right !== v) {
 			this.#right = v
-			this.emit('resize')
+			this.emit('change')
 		}
 	}
 
@@ -46,7 +44,7 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 	set bottom(v) {
 		if (this.#bottom !== v) {
 			this.#bottom = v
-			this.emit('resize')
+			this.emit('change')
 		}
 	}
 
@@ -54,10 +52,11 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 	set left(v) {
 		if (this.#left !== v) {
 			this.#left = v
-			this.emit('resize')
+			this.emit('change')
 		}
 	}
 
+	get inline(): number { return this.#left + this.#right }
 	set inline(v: number | [left: number, right: number]) {
 		const left = this.#left
 		const right = this.#right
@@ -67,9 +66,10 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 		else [this.#left, this.#right] = v
 
 		if (this.#left !== left || this.#right !== right)
-			this.emit('resize')
+			this.emit('change')
 	}
 
+	get block(): number { return this.#top + this.#bottom }
 	set block(v: number | [top: number, bottom: number]) {
 		const top = this.#top
 		const bottom = this.#bottom
@@ -79,9 +79,10 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 		else [this.#top, this.#bottom] = v
 
 		if (this.#top !== top || this.#bottom !== bottom)
-			this.emit('resize')
+			this.emit('change')
 	}
 
+	get all(): number { return this.inline + this.block }
 	set all(v: number | [top: number, right: number, bottom?: number, left?: number]) {
 		const top = this.#top
 		const right = this.#right
@@ -102,6 +103,6 @@ export default class MetricBox extends ExtendedEventEmitter<MetricBoxEvents> {
 			this.#right !== right ||
 			this.#bottom !== bottom ||
 			this.#left !== left
-		) this.emit('resize')
+		) this.emit('change')
 	}
 }
