@@ -111,9 +111,10 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			.off('resize', this._resizeListener)
 
 			this.style()
-			this.cursorStyle()
-			this.cursorVisible()
-			this.altBuffer(false)
+			.cursorStyle()
+			.cursorVisible()
+			.erase()
+			.altBuffer(false)
 			if (stop) process.exit()
 		}
 		return this
