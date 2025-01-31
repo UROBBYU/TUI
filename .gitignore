@@ -1,6 +1,7 @@
 /src/test.ts
 *.js
 *.txt
+*.node
 node_modules
 package-lock.json
 /keys.json

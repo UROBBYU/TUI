@@ -13,11 +13,17 @@
 	},
 	"main": "index.js",
 	"scripts": {
+		"prebuild": "node-gyp rebuild && copy .\\build\\Release\\winfix.node .\\src\\ && rd /s /q .\\build",
 		"build": "tsc",
-		"postbuild": "copy .\\src\\keys.json .\\"
+		"postbuild": "copy .\\src\\keys.json .\\ & copy .\\src\\winfix.node .\\",
+		"clear": "tsc --build --clean && rd /s /q .\\layout && del .\\keys.json && del .\\winfix.node",
+		"prepack": "npm run build",
+		"postpack": "npm run clear",
+		"build-gyp": "npm run prebuild"
 	},
 	"devDependencies": {
-		"@types/node": "^22.10.1"
+		"@types/node": "^22.10.1",
+		"node-addon-api": "^8.3.0"
 	},
 	"files": [
 		"LICENSE",
