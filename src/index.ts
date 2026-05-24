@@ -510,7 +510,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	static saveCursor = TUI.ESC('7')
 
 	/** `ESC 8` - Restore Cursor (DECRC), VT100. */
-	static restoreCursor = TUI.ESC('7')
+	static restoreCursor = TUI.ESC('8')
 
 	/** `CSI Ps A` - Cursor Up Ps Times (CUU). _(default = 1)_ */
 	static cursorUp(times = 1) { return TUI.CSI(`${times}A`) }
