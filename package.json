@@ -1,7 +1,7 @@
 {
 	"name": "@urobbyu/tui",
 	"version": "0.1.0",
-	"description": "Simple Text-based User Interface system for terminal terminal applications",
+	"description": "Simple Text-based User Interface system for terminal applications",
 	"author": "Robert Liapota <urobbyu@gmail.com>",
 	"repository": {
 		"type": "git",
