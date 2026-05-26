@@ -7,28 +7,24 @@
 		"type": "git",
 		"url": "git+https://github.com/UROBBYU/TUI.git"
 	},
-	"license": "MIT",
 	"publishConfig": {
 		"registry": "https://npm.pkg.github.com"
 	},
 	"main": "index.js",
+	"types": "index.d.ts",
 	"scripts": {
-		"prebuild": "node-gyp rebuild && copy .\\build\\Release\\winfix.node .\\src\\ && rd /s /q .\\build",
+		"prebuild": "node-gyp rebuild && shx cp build/Release/winfix.node src/ && shx rm -rf build",
 		"build": "tsc",
-		"postbuild": "copy .\\src\\keys.json .\\ & copy .\\src\\winfix.node .\\",
-		"clear": "tsc --build --clean && rd /s /q .\\layout && del .\\keys.json && del .\\winfix.node",
-		"prepack": "npm run build",
-		"postpack": "npm run clear",
+		"postbuild": "shx cp src/keys.json src/winfix.node dist/",
+		"clear": "shx rm -rf dist/",
 		"build-gyp": "npm run prebuild"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.1",
-		"node-addon-api": "^8.3.0"
+		"node-addon-api": "^8.3.0",
+		"shx": "^0.4.0"
 	},
-	"files": [
-		"LICENSE",
-		"index.js"
-	],
+	"files": ["*"],
 	"keywords": [
 		"tui",
 		"cli"

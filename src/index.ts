@@ -1,5 +1,10 @@
 import ExtendedEventEmitter from './events'
 
+type WinFix = {
+	getConsoleMode(): number
+	setConsoleMode(mode: number): void
+}
+
 type ColorList = keyof typeof COLOR_LIST
 type BrightColorList = `bright-${ColorList}`
 type RGBColor = `#${string}`
@@ -51,6 +56,9 @@ const CURSOR_STYLES = {
 
 const ETX = Buffer.of(3)
 const EOT = Buffer.of(4)
+
+const isWindows = process.platform === 'win32'
+const nonWinFix = () => { throw Error('This function is only available on Windows') }
 
 /** Text-based User Interface. */
 export class TUI extends ExtendedEventEmitter<TUIEvents> {
@@ -457,6 +465,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		})
 
 		return text
+	}
+
+	static winfix: WinFix = isWindows ? require('./winfix') : {
+		getConsoleMode: nonWinFix,
+		setConsoleMode: nonWinFix
 	}
 
 

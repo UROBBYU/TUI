@@ -6,8 +6,11 @@
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"resolveJsonModule": true,
-		"outDir": "./",
+		"types": ["node"],
+		"outDir": "./dist",
+		"rootDir": "./src",
 		"noEmitOnError": true,
-		"strict": true
+		"strict": true,
+		"declaration": true
 	}
 }
