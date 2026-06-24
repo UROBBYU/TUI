@@ -144,12 +144,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	}
 
 	/** `ESC code` */
-	writeCode(code: string) {
+	writeCode(...code: any[]) {
 		return this.write(TUI.ESC(code))
 	}
 
 	/** `ESC [ code` */
-	writeCSI(code: string) {
+	writeCSI(...code: any[]) {
 		return this.write(TUI.CSI(code))
 	}
 
@@ -217,12 +217,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			throw new Error('Position cannot be fractional', { cause: [col, row] })
 
 		if (col) {
-			if (col < 0) this.writeCSI(`${-col}D`)
-			else this.writeCSI(`${col}C`)
+			if (col < 0) this.writeCSI(-col, 'D')
+			else this.writeCSI(col, 'C')
 		}
 		if (row) {
-			if (row < 0) this.writeCSI(`${-row}A`)
-			else this.writeCSI(`${row}B`)
+			if (row < 0) this.writeCSI(-row, 'A')
+			else this.writeCSI(row, 'B')
 		}
 
 		return this
@@ -478,13 +478,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? #################################
 
 	/** `ESC code` */
-	static ESC(code: string) {
-		return `\x1B${code}`
+	static ESC(...code: any[]) {
+		return `\x1B${code.join('')}`
 	}
 
 	/** `ESC [ code` */
-	static CSI(code: string) {
-		return TUI.ESC(`[${code}`)
+	static CSI(...code: any[]) {
+		return TUI.ESC('[', code)
 	}
 
 	/** `ESC [ code h/l` */
@@ -493,31 +493,31 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	}
 
 	/** `CSI 0 J` - Erase in Display [Below] (ED), VT100. */
-	static eraseBelow = TUI.CSI('J')
+	static eraseBelow = TUI.CSI(0, 'J')
 
 	/** `CSI 1 J` - Erase in Display [Above] (ED), VT100. */
-	static eraseAbove = TUI.CSI('1J')
+	static eraseAbove = TUI.CSI(1, 'J')
 
 	/** `CSI 2 J` - Erase in Display [All] (ED), VT100. */
-	static erase = TUI.CSI('2J')
+	static erase = TUI.CSI(2, 'J')
 
 	/** `CSI 3 J` - Erase in Display [Saved Lines] (ED), VT100. */
-	static eraseSaved = TUI.CSI('3J')
+	static eraseSaved = TUI.CSI(3, 'J')
 
 	/** `CSI 0 K` - Erase in Line [Right] (EL), VT100. */
-	static eraseRight = TUI.CSI('K')
+	static eraseRight = TUI.CSI(0, 'K')
 
 	/** `CSI 1 K` - Erase in Line [Left] (EL), VT100. */
-	static eraseLeft = TUI.CSI('1K')
+	static eraseLeft = TUI.CSI(1, 'K')
 
 	/** `CSI 2 K` - Erase in Line [All] (EL), VT100. */
-	static eraseLine = TUI.CSI('2K')
+	static eraseLine = TUI.CSI(2, 'K')
 
 	/** `CSI Ps X` - Erase Ps Character(s) (ECH). _(default = 1)_ */
-	static eraseChars(amount = 1) { return TUI.CSI(`${amount}X`) }
+	static eraseChars(amount = 1) { return TUI.CSI(amount, 'X') }
 
 	/** `CSI Pt ; Pl ; Pb ; Pr $ z` - Erase Rectangular Area (DECERA), VT400 and up. */
-	static eraseRect(row: number, col: number, width: number, height: number) { return TUI.CSI(`${row};${col};${row + height - 1};${col + width - 1}$z`) }
+	static eraseRect(row: number, col: number, width: number, height: number) { return TUI.CSI(row, ';', col, ';', row + height - 1, ';', col + width - 1, '$', 'z') }
 
 	/** `ESC 7` - Save Cursor (DECSC), VT100. */
 	static saveCursor = TUI.ESC('7')
@@ -526,19 +526,19 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	static restoreCursor = TUI.ESC('8')
 
 	/** `CSI Ps A` - Cursor Up Ps Times (CUU). _(default = 1)_ */
-	static cursorUp(times = 1) { return TUI.CSI(`${times}A`) }
+	static cursorUp(times = 1) { return TUI.CSI(times, 'A') }
 
 	/** `CSI Ps B` - Cursor Down Ps Times (CUD). _(default = 1)_ */
-	static cursorDown(times = 1) { return TUI.CSI(`${times}B`) }
+	static cursorDown(times = 1) { return TUI.CSI(times, 'B') }
 
 	/** `CSI Ps C` - Cursor Forward Ps Times (CUF). _(default = 1)_ */
-	static cursorRight(times = 1) { return TUI.CSI(`${times}C`) }
+	static cursorRight(times = 1) { return TUI.CSI(times, 'C') }
 
 	/** `CSI Ps D` - Cursor Backward Ps Times (CUB). _(default = 1)_ */
-	static cursorLeft(times = 1) { return TUI.CSI(`${times}D`) }
+	static cursorLeft(times = 1) { return TUI.CSI(times, 'D') }
 
 	/** `CSI Ps ; Ps H` - Cursor Position [row;column] (CUP). _(default = [1,1])_ */
-	static cursorPosition(row = 1, col = 1) { return TUI.CSI(`${row};${col}H`) }
+	static cursorPosition(row = 1, col = 1) { return TUI.CSI(row, ';', col, 'H') }
 
 	/** `CSI Pm m` - Character Attributes (SGR). _(default = clear)_ */
 	static style(): string
@@ -611,7 +611,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			}
 		}
 
-		return TUI.CSI(`${codes.join(';')}m`)
+		return TUI.CSI(codes.join(';'), 'm')
 	}
 
 	/** `CSI Ps SP q` - Set cursor style (DECSCUSR), VT520.
@@ -624,7 +624,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * - 5 ⇒ blinking bar, xterm
 	 * - 6 ⇒ steady bar, xterm
 	 * */
-	static cursorStyle(code = 0) { return TUI.CSI(`${code} q`) }
+	static cursorStyle(code = 0) { return TUI.CSI(code, 'q') }
 
 	/** `CSI ? 25 h/l` - Show/Hide cursor (DECTCEM), VT220. _(default = show)_ */
 	static cursorVisible(is = true) { return TUI.CSIBool('?25', is) }
