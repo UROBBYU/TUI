@@ -208,6 +208,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** Moves cursor left. _(default = 1)_ */
 	cursorLeft(times = 1) { return this.write(TUI.cursorLeft(times)) }
 
+	/** Moves cursor to the beginning of the next line. _(default = 1)_ */
+	cursorNextLine(times = 1) { return this.write(TUI.cursorNextLine(times)) }
+
+	/** Moves cursor to the beginning of the previous line. _(default = 1)_ */
+	cursorPrecedingLine(times = 1) { return this.write(TUI.cursorPrecedingLine(times)) }
+
 	/** Sets absolute 1-based cursor position. _(default = [1,1])_ */
 	cursorPosition(row = 1, col = 1) { return this.write(TUI.cursorPosition(row, col)) }
 
@@ -536,6 +542,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `CSI Ps D` - Cursor Backward Ps Times (CUB). _(default = 1)_ */
 	static cursorLeft(times = 1) { return TUI.CSI(times, 'D') }
+
+	/** `CSI Ps E` - Cursor Next Line Ps Times (CNL). _(default = 1)_ */
+	static cursorNextLine(times = 1) { return TUI.CSI(times, 'E') }
+
+	/** `CSI Ps F` - Cursor Preceding Line Ps Times (CPL). _(default = 1)_ */
+	static cursorPrecedingLine(times = 1) { return TUI.CSI(times, 'F') }
 
 	/** `CSI Ps ; Ps H` - Cursor Position [row;column] (CUP). _(default = [1,1])_ */
 	static cursorPosition(row = 1, col = 1) { return TUI.CSI(row, ';', col, 'H') }
