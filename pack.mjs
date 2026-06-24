@@ -1,12 +1,11 @@
 import sh from 'shelljs'
 import fs from 'fs'
-
-const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf-8'))
+import pkg from './package.json' with { type: 'json' }
 
 delete pkg.scripts
 delete pkg.devDependencies
 
 sh.exec('npm run build')
 fs.writeFileSync('./dist/package.json', JSON.stringify(pkg, null, 2))
-sh.exec('npm pack ./dist')
+sh.mv(sh.exec('npm pack ./dist').trim(), './pkg.tgz')
 sh.exec('npm run clear')
