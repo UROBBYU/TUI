@@ -25,6 +25,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug build environment
+        shell: pwsh
+        run: "Get-ChildItem Env: | Sort-Object Name"
+
       - name: Run pack script
         run: node pack.mjs
 
