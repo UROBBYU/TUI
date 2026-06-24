@@ -1,0 +1,38 @@
+name: Pack on Tag
+
+on:
+  push:
+    tags:
+      - "*"   # runs on every new tag push
+
+jobs:
+  pack:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}  # ensures the tag commit is checked out
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run pack script
+        run: node pack.mjs
+
+      - name: Create Release + Upload package
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: package.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
