@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import ExtendedEventEmitter from './events'
 
 type WinFix = {
@@ -219,8 +220,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** Moves cursor relative to current position. */
 	move(col: number, row: number) {
-		if (!Number.isInteger(col) || !Number.isInteger(row))
-			throw new Error('Position cannot be fractional', { cause: [col, row] })
+		assert(Number.isInteger(col) && Number.isInteger(row),
+			Error('Position cannot be fractional', { cause: [col, row] }))
 
 		if (col) {
 			if (col < 0) this.writeCSI(-col, 'D')
@@ -243,18 +244,18 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 */
 	moveTo(col: number, row?: number): this
 	moveTo(col = 1, row = 1) {
-		if (col < 0 || row < 0)
-			throw new Error('Absolute position cannot be negative', { cause: [col, row] })
+		assert(col >= 0 && row >= 0,
+			Error('Absolute position cannot be negative', { cause: [col, row] }))
 
 		if (col < 1) {
 			col = Math.round(col * (this.width - 1) + 1)
-		} else if (!Number.isInteger(col))
-			throw new Error('Position cannot be fractional', { cause: col })
+		} else assert(Number.isInteger(col),
+			Error('Position cannot be fractional', { cause: col }))
 
 		if (row < 1) {
 			row = Math.round(row * (this.height - 1) + 1)
-		} else if (!Number.isInteger(row))
-			throw new Error('Position cannot be fractional', { cause: row })
+		} else assert(Number.isInteger(row),
+			Error('Position cannot be fractional', { cause: row }))
 
 		return this.cursorPosition(row, col)
 	}
@@ -288,13 +289,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		let code: number
 
 		if (typeof opt === 'number') {
-			if (!Number.isInteger(opt) || opt < 0 || opt > 6)
-				throw new Error(`Invalid style code: ${opt}`, { cause: opt })
+			assert(Number.isInteger(opt) && opt >= 0 && opt <= 6,
+				Error(`Invalid style code: ${opt}`, { cause: opt }))
 
 			code = opt
 		} else {
-			if (!Object.hasOwn(CURSOR_STYLES, opt))
-				throw new Error(`Invalid style: "${opt}"`, { cause: opt })
+			assert(Object.hasOwn(CURSOR_STYLES, opt),
+				Error(`Invalid style: "${opt}"`, { cause: opt }))
 
 			code = CURSOR_STYLES[opt]
 		}
@@ -576,14 +577,14 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 					if (clr !== undefined) {
 						if (clr === 'default') codes.push(39 + off)
 						else if (typeof clr === 'number') {
-							if (!Number.isInteger(clr) || clr < 0 || clr > 255)
-								throw new Error(`Invalid index color: ${clr}`, { cause: clr })
+							assert(Number.isInteger(clr) && clr >= 0 && clr <= 255,
+								Error(`Invalid index color: ${clr}`, { cause: clr }))
 
 							codes.push(38 + off, 5, clr)
 						} else if (clr.startsWith('#')) {
 							const regexArr = /^#([0-F]{1,2})([0-F]{1,2})([0-F]{1,2})$/i.exec(clr)
-							if (!regexArr || !(clr.length === 4 || clr.length === 7))
-								throw new Error(`Invalid hex color: ${clr}`, { cause: clr })
+							assert(regexArr && (clr.length === 4 || clr.length === 7),
+								Error(`Invalid hex color: ${clr}`, { cause: clr }))
 
 							codes.push(38 + off, 2,
 								parseInt(dc(regexArr[1]), 16),
