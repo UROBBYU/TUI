@@ -129,6 +129,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return this
 	}
 
+	/** Toggles Raw Mode. _(default = true)_ */
+	rawMode(is = true) {
+		this.sin.setRawMode(is)
+		return this
+	}
+
 	write(message: any) {
 		if (!(message instanceof Buffer))
 			message = `${message}`
