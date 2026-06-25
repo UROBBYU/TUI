@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { Color, TUI } from '..'
 import ExtendedEventEmitter from '../events'
 import BorderBox from './BorderBox'
@@ -264,6 +265,9 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 		super()
 		const me = this
 
+		assert(isFinite(parent.width!) && isFinite(parent.height!),
+			'Panels only work with parents who have width and height')
+
 		parent.on('resize', () => me.updateSize())
 		parent.on('change', prop => {
 			if (prop.name === 'size') me.updateSize()
@@ -395,14 +399,14 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 	}
 
 	updateSize() {
-		let avWidth = this.parent.width -
+		let avWidth = this.parent.width! -
 		this.margin.left -
 		this.margin.right -
 		this.border.left.width -
 		this.border.right.width -
 		this.padding.left -
 		this.padding.right
-		let avHeight = this.parent.height -
+		let avHeight = this.parent.height! -
 		this.margin.top -
 		this.margin.bottom -
 		this.border.top.width -
