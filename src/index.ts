@@ -89,10 +89,9 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? ############ METHODS ############
 	//? #################################
 
-	init() {
+	init(alt = true, raw = true) {
 		if (!this.#active) {
-			this.altBuffer(true)
-			this.sin.setRawMode(true)
+			this.altBuffer(alt).rawMode(raw)
 			.on('close', this._closeListener)
 			.on('end', this._endListener)
 			.on('data', this._dataListener)
@@ -100,7 +99,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			this.sout
 			.on('resize', this._resizeListener)
 
-			.cursorTo(0, 0)
+			if (alt) this.moveTo()
 
 			this.#active = true
 		}
