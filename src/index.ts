@@ -331,8 +331,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			this.emit('data', data)
 
 			if (
-				(this.options.exitOnCtrlC && data.equals(this.CTRL_C))
-				|| (this.options.exitOnCtrlD && data.equals(this.CTRL_D))
+				(this.options.exitOnCtrlC && data.equals(TUI.CTRL_C))
+				|| (this.options.exitOnCtrlD && data.equals(TUI.CTRL_D))
 			) this.emit('end')
 		}
 	}
@@ -370,14 +370,6 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	get height() {
 		return this.sout.rows
-	}
-
-	get CTRL_C() {
-		return ETX
-	}
-
-	get CTRL_D() {
-		return EOT
 	}
 
 
@@ -478,6 +470,14 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		getConsoleMode: nonWinFix,
 		setConsoleMode: nonWinFix
 	}
+
+	static readonly ETX = ETX
+
+	static readonly EOT = EOT
+
+	static readonly CTRL_C = ETX
+
+	static readonly CTRL_D = EOT
 
 
 	//? #################################
