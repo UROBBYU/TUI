@@ -66,6 +66,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	#lastRawMode: boolean
 	#active = false
 
+	/**
+	 * Creates a TUI instance bound to the provided input and output streams.
+	 *
+	 * @param sin - The terminal input stream.
+	 * @param sout - The terminal output stream.
+	 * @param options - Optional behavior settings for Ctrl+C and Ctrl+D handling.
+	 */
 	constructor(
 		public sin: NodeJS.ReadStream,
 		public sout: NodeJS.WriteStream,
@@ -89,6 +96,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? ############ METHODS ############
 	//? #################################
 
+	/**
+	 * Initializes the TUI session.
+	 *
+	 * @param alt - Enable the alternate screen buffer.
+	 * @param raw - Enable raw input mode.
+	 * @returns The current TUI instance.
+	 */
 	init(alt = true, raw = true) {
 		if (!this.#active) {
 			this.altBuffer(alt).rawMode(raw)
@@ -106,6 +120,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return this
 	}
 
+	/**
+	 * Exits the TUI session and restores terminal state.
+	 *
+	 * @param stop - Terminate the process after cleanup.
+	 * @returns The current TUI instance.
+	 */
 	exit(stop = true) {
 		if (this.#active) {
 			this.#active = false
@@ -134,6 +154,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return this
 	}
 
+	/** Writes a message to the terminal output stream. */
 	write(message: any) {
 		if (!(message instanceof Buffer))
 			message = `${message}`
@@ -141,10 +162,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return this
 	}
 
-	endl() { // TODO: Add JSDoc everywhere!
+	/** Writes a newline character to the terminal output stream. */
+	endl() {
 		return this.write('\n')
 	}
 
+	/** Writes a message followed by a newline. */
 	writeLine(message: any) {
 		return this.write(message).endl()
 	}
@@ -353,9 +376,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? ####### GETTERS & SETTERS #######
 	//? #################################
 
+	/** Indicates whether the TUI is currently active and initialized. */
 	get active() {
 		return this.#active
 	}
+	/** Initializes or exits the TUI session. */
 	set active(val) {
 		if (val) this.init()
 		else this.exit()
@@ -369,10 +394,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return 1
 	}
 
+	/** Terminal width in columns. */
 	get width() {
 		return this.sout.columns
 	}
 
+	/** Terminal height in rows. */
 	get height() {
 		return this.sout.rows
 	}
@@ -382,6 +409,17 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? ############ STATICS ############
 	//? #################################
 
+	/**
+	 * Wraps and formats a string to fit within the requested width.
+	 *
+	 * @param str - The string to format.
+	 * @param width - The maximum width for wrapped lines.
+	 * @param [firstWidth=width] - The width used for the first line.
+	 * @param [wordWrap=true] - Whether to wrap at word boundaries when possible.
+	 * @param [tabSize=4] - The number of spaces to expand tabs to.
+	 * @param [defStyle] - An optional default style (SGR) to apply.
+	 * @returns The formatted lines as an array of strings.
+	 */
 	static fitString(str: string, width: number, firstWidth = width, wordWrap = true, tabSize = 4, defStyle?: string) {
 		const codes: {
 			code: string
@@ -476,12 +514,16 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		setConsoleMode: nonWinFix
 	}
 
+	/** End-of-Text control character buffer. */
 	static readonly ETX = ETX
 
+	/** End-of-Transmission control character buffer. */
 	static readonly EOT = EOT
 
+	/** Alias to {@link TUI.ETX}. */
 	static readonly CTRL_C = ETX
 
+	/** Alias to {@link TUI.EOT}. */
 	static readonly CTRL_D = EOT
 
 
