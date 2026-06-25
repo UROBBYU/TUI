@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import sh from 'shelljs'
 import pkg from './package.json' with { type: 'json' }
 
+const tscRes = sh.exec('npx tsc --noEmit')
+if (tscRes.code) process.exit(tscRes.code)
+
 const tagName = `v${pkg.version}`
 const releaseBranch = `release/${tagName}`
 const branches = sh.exec('git branch', { silent: true }).split('\n')
@@ -25,7 +28,7 @@ assert.equal(curBranch, 'main', 'All releases should be created from the main br
 assert(!branches.includes(releaseBranch), `Release branch ${releaseBranch} already exists.`)
 
 const gitLog = sh.exec('git log', { silent: true })
-const resolves = Array.from(gitLog.split('\n    Bumped version to ')[0]?.matchAll(/\s+Resolves:? (#\d+)\s+/g) ?? []).map(m => m[1])
+const resolves = Array.from(new Set(Array.from(gitLog.split('\n    Bumped version to ')[0]?.matchAll(/\s+Resolves:? (#\d+)\s+/g) ?? []).map(m => m[1])))
 
 const tagMessage = resolves.length ? `Resolved: ${resolves.join(', ')}` : ''
 
