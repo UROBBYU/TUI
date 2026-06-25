@@ -9,6 +9,10 @@ jobs:
   pack:
     runs-on: windows-latest
 
+    permissions:
+      contents: write
+      packages: write
+
     steps:
       - name: Checkout tag
         uses: actions/checkout@v6
@@ -21,6 +25,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          registry-url: https://npm.pkg.github.com/
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
@@ -36,3 +41,8 @@ jobs:
           files: package.tgz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Package
+        run: npm publish package.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
