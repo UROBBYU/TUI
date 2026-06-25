@@ -105,7 +105,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 */
 	init(alt = true, raw = true) {
 		if (!this.#active) {
-			this.altBuffer(alt).rawMode(raw)
+			if (alt) this.altBuffer()
+			if (raw) this.rawMode()
 
 			this.sin
 			.on('close', this._closeListener)
