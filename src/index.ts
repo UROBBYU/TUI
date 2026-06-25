@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict'
 import ExtendedEventEmitter from './events'
+import type Stream from 'node:stream'
 
 type WinFix = {
 	getConsoleMode(): number
 	setConsoleMode(mode: number): void
+}
+
+type InputStream = Stream.Readable & {
+	isRaw?: boolean
+	setRawMode?(is?: boolean): void
+}
+
+type OutputStream = Stream.Writable & {
+	columns?: number
+	rows?: number
 }
 
 type ColorList = keyof typeof COLOR_LIST
@@ -74,8 +85,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * @param options - Optional behavior settings for Ctrl+C and Ctrl+D handling.
 	 */
 	constructor(
-		public sin: NodeJS.ReadStream,
-		public sout: NodeJS.WriteStream,
+		public sin: InputStream,
+		public sout: OutputStream,
 		private options: {
 			exitOnCtrlC: boolean,
 			exitOnCtrlD: boolean
@@ -85,7 +96,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		}
 	) {
 		super()
-		this.#lastRawMode = sin.isRaw
+		this.#lastRawMode = Boolean(sin.isRaw)
 
 		this.on('close', () => this.exit()).on('end', () => this.exit())
 		process.once('exit', () => this.exit())
@@ -133,7 +144,9 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		if (this.#active) {
 			this.#active = false
 
-			this.sin.setRawMode(this.#lastRawMode)
+			this.rawMode(this.#lastRawMode)
+
+			this.sin
 			.off('close', this._closeListener)
 			.off('end', this._endListener)
 			.off('data', this._dataListener)
@@ -153,7 +166,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** Toggles Raw Mode. _(default = true)_ */
 	rawMode(is = true) {
-		this.sin.setRawMode(is)
+		this.sin.setRawMode?.(is)
 		return this
 	}
 
@@ -278,6 +291,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		assert(col >= 0 && row >= 0,
 			Error('Absolute position cannot be negative', { cause: [col, row] }))
 
+		assert(this.width && this.height, 'This method is not available for output streams without width and height')
+
 		if (col < 1) {
 			col = Math.round(col * (this.width - 1) + 1)
 		} else assert(Number.isInteger(col),
@@ -369,6 +384,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	}
 
 	protected readonly _resizeListener = () => {
+		assert(this.width && this.height, 'Resize should not emit when width or height are not defined')
+
 		if (this.#active) {
 			this.emit('resize', this.width, this.height)
 		}
