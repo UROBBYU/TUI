@@ -177,12 +177,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `ESC code` */
 	writeCode(...code: any[]) {
-		return this.write(TUI.ESC(code))
+		return this.write(TUI.ESC(...code))
 	}
 
 	/** `ESC [ code` */
 	writeCSI(...code: any[]) {
-		return this.write(TUI.CSI(code))
+		return this.write(TUI.CSI(...code))
 	}
 
 	/** `ESC [ code h/l` */
@@ -541,7 +541,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `ESC [ code` */
 	static CSI(...code: any[]) {
-		return TUI.ESC('[', code)
+		return TUI.ESC('[', ...code)
 	}
 
 	/** `ESC [ code h/l` */
