@@ -19,9 +19,11 @@ type OutputStream = Stream.Writable & {
 
 type ColorList = keyof typeof COLOR_LIST
 type BrightColorList = `bright-${ColorList}`
-type RGBColor = `#${string}`
+type HexColor = `#${string}`
+type RGBColor = [red: number, green: number, blue: number]
+type RGBRange = [from: RGBColor, to: RGBColor]
 type ColorIndex = number
-export type Color = ColorList | BrightColorList | ColorIndex | RGBColor | 'default'
+export type Color = ColorList | BrightColorList | ColorIndex | HexColor | 'default'
 
 type Style = {
 	color?: Color
@@ -71,6 +73,16 @@ const EOT = Buffer.of(4)
 
 const isWindows = process.platform === 'win32'
 const nonWinFix = () => { throw Error('This function is only available on Windows') }
+
+const dc = (cnl: string) => cnl.length === 2 ? cnl : cnl + cnl
+
+const interp = (from: number, to: number, percent: number) => from + (to - from) * percent
+
+const interpRGB = (range: RGBRange, percent: number): RGBColor => [
+	Math.round(interp(range[0][0], range[1][0], percent)),
+	Math.round(interp(range[0][1], range[1][1], percent)),
+	Math.round(interp(range[0][2], range[1][2], percent))
+]
 
 /** Text-based User Interface. */
 export class TUI extends ExtendedEventEmitter<TUIEvents> {
@@ -186,6 +198,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** Writes a message followed by a newline. */
 	writeLine(message: any) {
 		return this.write(message).endl()
+	}
+
+	/** Writes a progress bar to the terminal output stream. */
+	progressBar(text: string, progress: number, bg: RGBRange, fg: RGBRange) {
+		return this.write(TUI.progressBar(text, progress, bg, fg))
 	}
 
 	/** `ESC code` */
@@ -529,6 +546,49 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return text
 	}
 
+	/** Parses a hexadecimal color string into an RGB tuple. */
+	static parseHexColor(clr: HexColor): RGBColor {
+		const regexArr = /^#([0-F]{1,2})([0-F]{1,2})([0-F]{1,2})$/i.exec(clr)
+		assert(regexArr && (clr.length === 4 || clr.length === 7),
+			Error(`Invalid hex color: ${clr}`, { cause: clr }))
+
+
+		return [
+			parseInt(dc(regexArr[1]), 16),
+			parseInt(dc(regexArr[2]), 16),
+			parseInt(dc(regexArr[3]), 16)
+		]
+	}
+
+	/**
+	 * Renders a progress bar using the provided colors.
+	 *
+	 * @param text - The text to render as the bar.
+	 * @param progress - The current progress value.
+	 * @param bg - The background color range.
+	 * @param fg - The foreground color range.
+	 * @returns The rendered progress bar string.
+	 */
+	static progressBar(text: string, progress: number, bg: RGBRange, fg: RGBRange) {
+		let output = ''
+		const ppc = 1 / text.length
+		const filled = Math.floor(progress / ppc)
+		const percent = progress % ppc / ppc
+		const empty = text.length - filled - Math.ceil(percent)
+
+		if (filled) output +=
+			TUI.style(48, 2, ...bg[1], 38, 2, ...fg[1]) + text.slice(0, filled)
+
+		if (percent) output +=
+			TUI.style(48, 2, ...interpRGB(bg, percent), 38, 2, ...fg[Math.round(percent)]) +
+			text.slice(filled, filled + 1)
+
+		if (empty) output +=
+			TUI.style(48, 2, ...bg[0], 38, 2, ...fg[0]) + text.slice(-empty)
+
+		return output + TUI.style()
+	}
+
 	static winfix: WinFix = isWindows ? require('./winfix') : {
 		getConsoleMode: nonWinFix,
 		setConsoleMode: nonWinFix
@@ -638,8 +698,6 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 						codes.push(opt ? (opt === 2 ? d : t) : f)
 				}
 
-				const dc = (cnl: string) => cnl.length === 2 ? cnl : cnl + cnl
-
 				const cc = (clr?: Color, off = 0) => {
 					if (clr !== undefined) {
 						if (clr === 'default') codes.push(39 + off)
@@ -649,15 +707,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 							codes.push(38 + off, 5, clr)
 						} else if (clr.startsWith('#')) {
-							const regexArr = /^#([0-F]{1,2})([0-F]{1,2})([0-F]{1,2})$/i.exec(clr)
-							assert(regexArr && (clr.length === 4 || clr.length === 7),
-								Error(`Invalid hex color: ${clr}`, { cause: clr }))
-
-							codes.push(38 + off, 2,
-								parseInt(dc(regexArr[1]), 16),
-								parseInt(dc(regexArr[2]), 16),
-								parseInt(dc(regexArr[3]), 16)
-							)
+							codes.push(38 + off, 2, ...TUI.parseHexColor(clr as HexColor))
 						} else {
 							const colorArr = clr.split('-')
 
