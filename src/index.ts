@@ -285,12 +285,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			Error('Position cannot be fractional', { cause: [col, row] }))
 
 		if (col) {
-			if (col < 0) this.writeCSI(-col, 'D')
-			else this.writeCSI(col, 'C')
+			if (col < 0) this.cursorLeft(-col)
+			else this.cursorRight(col)
 		}
 		if (row) {
-			if (row < 0) this.writeCSI(-row, 'A')
-			else this.writeCSI(row, 'B')
+			if (row < 0) this.cursorUp(-row)
+			else this.cursorDown(row)
 		}
 
 		return this
