@@ -200,6 +200,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return this.write(message).endl()
 	}
 
+	/** Writes text and inline styles to the output stream. */
+	stylize(...entries: Parameters<typeof TUI.stylize>): this {
+		return this.write(TUI.stylize(...entries))
+	}
+
 	/** Writes a progress bar to the terminal output stream. */
 	progressBar(text: string, progress: number, bg: RGBRange, fg: RGBRange) {
 		return this.write(TUI.progressBar(text, progress, bg, fg))
@@ -329,7 +334,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	style(options: Style): this
 	/** For explanation see [documentation (Character Attributes (SGR))](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_). */
 	style(...codes: number[]): this
-	style(fst?: Style | number, ...rst: number[]) {
+	style() {
 		return this.write(TUI.style(...arguments))
 	}
 
@@ -589,6 +594,36 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return output + TUI.style()
 	}
 
+	/**
+	 * Combines text and style entries into one string, applying each style where it appears.
+	 * Consecutive numeric entries are treated as style codes; `Style` objects are converted
+	 * to styles, while strings are included as text.
+	 */
+	static stylize(...entries: (Style | number | string | null)[]) {
+		let result = ''
+		const codes: number[] = []
+
+		for (const entry of entries) {
+			if (typeof entry === 'number') codes.push(entry)
+			else {
+				if (codes.length) {
+					result += TUI.style(...codes)
+					codes.length = 0
+				}
+
+				if (typeof entry === 'object') result += TUI.style(entry)
+				else result += entry
+			}
+		}
+
+		if (codes.length) {
+			result += TUI.style(...codes)
+			codes.length = 0
+		}
+
+		return result
+	}
+
 	static winfix: WinFix = isWindows ? require('./winfix') : {
 		getConsoleMode: nonWinFix,
 		setConsoleMode: nonWinFix
@@ -683,12 +718,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** `CSI Pm m` - Character Attributes (SGR). _(default = clear)_ */
 	static style(): string
 	/** For explanation see [documentation (Character Attributes (SGR))](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_). */
-	static style(options: Style): string
+	static style(options: Style | null): string
 	/** For explanation see [documentation (Character Attributes (SGR))](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_). */
 	static style(...codes: number[]): string
-	static style(fst?: Style | number, ...rst: number[]) {
+	static style(fst?: Style | number | null, ...rst: number[]) {
 		let codes: number[] = []
-		if (typeof fst == 'number') {
+		if (typeof fst === 'number') {
 			codes = [fst, ...rst]
 		} else if (fst) {
 			if (fst.reset) codes = [0]
