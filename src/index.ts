@@ -331,7 +331,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** Clears styles. */
 	style(): this
 	/** For explanation see [documentation (Character Attributes (SGR))](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_). */
-	style(options: Style): this
+	style(options: Style | null): this
 	/** For explanation see [documentation (Character Attributes (SGR))](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_). */
 	style(...codes: number[]): this
 	style() {
