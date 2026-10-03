@@ -88,6 +88,7 @@ const interpRGB = (range: RGBRange, percent: number): RGBColor => [
 export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	#lastRawMode: boolean
 	#active = false
+	#altBuffer = false
 
 	/**
 	 * Creates a TUI instance bound to the provided input and output streams.
@@ -169,8 +170,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			this.style()
 			.cursorStyle()
 			.cursorVisible()
-			.erase()
-			.altBuffer(false)
+
+			if (this.#altBuffer)
+				this.erase()
+				.altBuffer(false)
+
 			if (stop) process.exit()
 		}
 		return this
@@ -375,7 +379,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	cursorVisible(is = true) { return this.write(TUI.cursorVisible(is)) }
 
 	/** Toggles Alternate Buffer. _(default = true)_ */
-	altBuffer(is = true) { return this.write(TUI.altBuffer(is)) }
+	altBuffer(is = true) { return this.write(TUI.altBuffer(this.#altBuffer = is)) }
 
 
 	//? #################################
