@@ -1,27 +1,23 @@
 import assert from 'node:assert/strict'
 import ExtendedEventEmitter from './events'
-import type Stream from 'node:stream'
+import { Readable, Writable } from 'node:stream'
+import { TUIEvents, BrightColorList, HexColor, RGBColor, RGBRange, ColorList } from '@urobbyu/tui/ts'
 
 type WinFix = {
 	getConsoleMode(): number
 	setConsoleMode(mode: number): void
 }
 
-type InputStream = Stream.Readable & {
+type InputStream = Readable & {
 	isRaw?: boolean
 	setRawMode?(is?: boolean): void
 }
 
-type OutputStream = Stream.Writable & {
+type OutputStream = Writable & {
 	columns?: number
 	rows?: number
 }
 
-type ColorList = keyof typeof COLOR_LIST
-type BrightColorList = `bright-${ColorList}`
-type HexColor = `#${string}`
-type RGBColor = [red: number, green: number, blue: number]
-type RGBRange = [from: RGBColor, to: RGBColor]
 type ColorIndex = number
 export type Color = ColorList | BrightColorList | ColorIndex | HexColor | 'default'
 
@@ -38,13 +34,6 @@ type Style = {
 	inverse?: boolean
 	invisible?: boolean
 	strikethrough?: boolean
-}
-
-type TUIEvents = {
-	close: [hadError: boolean]
-	end: []
-	data: [data: Buffer]
-	resize: [width: number, height: number]
 }
 
 const COLOR_LIST = {
@@ -86,9 +75,9 @@ const interpRGB = (range: RGBRange, percent: number): RGBColor => [
 
 /** Text-based User Interface. */
 export class TUI extends ExtendedEventEmitter<TUIEvents> {
-	#lastRawMode: boolean
-	#active = false
-	#altBuffer = false
+	private _lastRawMode: boolean
+	private _active = false
+	private _altBuffer = false
 
 	/**
 	 * Creates a TUI instance bound to the provided input and output streams.
@@ -109,7 +98,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		}
 	) {
 		super()
-		this.#lastRawMode = Boolean(sin.isRaw)
+		this._lastRawMode = Boolean(sin.isRaw)
 
 		this.on('close', () => this.exit()).on('end', () => this.exit())
 		process.once('exit', () => this.exit())
@@ -128,7 +117,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * @returns The current TUI instance.
 	 */
 	init(alt = true, raw = true) {
-		if (!this.#active) {
+		if (!this._active) {
 			if (alt) this.altBuffer()
 			if (raw) this.rawMode()
 
@@ -142,7 +131,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 			if (alt) this.moveTo()
 
-			this.#active = true
+			this._active = true
 		}
 		return this
 	}
@@ -154,10 +143,10 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * @returns The current TUI instance.
 	 */
 	exit(stop = true) {
-		if (this.#active) {
-			this.#active = false
+		if (this._active) {
+			this._active = false
 
-			this.rawMode(this.#lastRawMode)
+			this.rawMode(this._lastRawMode)
 
 			this.sin
 			.off('close', this._closeListener)
@@ -171,7 +160,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			.cursorStyle()
 			.cursorVisible()
 
-			if (this.#altBuffer)
+			if (this._altBuffer)
 				this.erase()
 				.altBuffer(false)
 
@@ -291,7 +280,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** Moves cursor relative to current position. */
 	move(col: number, row: number) {
 		assert(Number.isInteger(col) && Number.isInteger(row),
-			Error('Position cannot be fractional', { cause: [col, row] }))
+			Error('Position cannot be fractional'))
 
 		if (col) {
 			if (col < 0) this.cursorLeft(-col)
@@ -315,19 +304,19 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	moveTo(col: number, row?: number): this
 	moveTo(col = 1, row = 1) {
 		assert(col >= 0 && row >= 0,
-			Error('Absolute position cannot be negative', { cause: [col, row] }))
+			Error('Absolute position cannot be negative'))
 
 		assert(this.width && this.height, 'This method is not available for output streams without width and height')
 
 		if (col < 1) {
 			col = Math.round(col * (this.width - 1) + 1)
 		} else assert(Number.isInteger(col),
-			Error('Position cannot be fractional', { cause: col }))
+			Error('Position cannot be fractional'))
 
 		if (row < 1) {
 			row = Math.round(row * (this.height - 1) + 1)
 		} else assert(Number.isInteger(row),
-			Error('Position cannot be fractional', { cause: row }))
+			Error('Position cannot be fractional'))
 
 		return this.cursorPosition(row, col)
 	}
@@ -338,8 +327,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	style(options: Style | null): this
 	/** For explanation see [documentation (Character Attributes (SGR))](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_). */
 	style(...codes: number[]): this
-	style() {
-		return this.write(TUI.style(...arguments))
+	style(...args: any[]) {
+		return this.write(TUI.style(...args))
 	}
 
 	/** Sets cursor style. _(default = normal)_ */
@@ -362,12 +351,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 		if (typeof opt === 'number') {
 			assert(Number.isInteger(opt) && opt >= 0 && opt <= 6,
-				Error(`Invalid style code: ${opt}`, { cause: opt }))
+				Error(`Invalid style code: ${opt}`))
 
 			code = opt
 		} else {
-			assert(Object.hasOwn(CURSOR_STYLES, opt),
-				Error(`Invalid style: "${opt}"`, { cause: opt }))
+			assert(opt in CURSOR_STYLES,
+				Error(`Invalid style: "${opt}"`))
 
 			code = CURSOR_STYLES[opt]
 		}
@@ -379,7 +368,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	cursorVisible(is = true) { return this.write(TUI.cursorVisible(is)) }
 
 	/** Toggles Alternate Buffer. _(default = true)_ */
-	altBuffer(is = true) { return this.write(TUI.altBuffer(this.#altBuffer = is)) }
+	altBuffer(is = true) { return this.write(TUI.altBuffer(this._altBuffer = is)) }
 
 
 	//? #################################
@@ -387,19 +376,19 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	//? #################################
 
 	protected readonly _closeListener = (err: boolean) => {
-		if (this.#active) {
+		if (this._active) {
 			this.emit('close', err)
 		}
 	}
 
 	protected readonly _endListener = () => {
-		if (this.#active) {
+		if (this._active) {
 			this.emit('end')
 		}
 	}
 
 	protected readonly _dataListener = (data: Buffer) => {
-		if (this.#active) {
+		if (this._active) {
 			this.emit('data', data)
 
 			if (
@@ -412,7 +401,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	protected readonly _resizeListener = () => {
 		assert(this.width && this.height, 'Resize should not emit when width or height are not defined')
 
-		if (this.#active) {
+		if (this._active) {
 			this.emit('resize', this.width, this.height)
 		}
 	}
@@ -424,7 +413,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** Indicates whether the TUI is currently active and initialized. */
 	get active() {
-		return this.#active
+		return this._active
 	}
 	/** Initializes or exits the TUI session. */
 	set active(val) {
@@ -477,7 +466,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		let cursor = 0
 
 		defStyle = '\x1b[m' + (defStyle ?? '')
-		str = str.replaceAll('\x1B[m', defStyle)
+		str = str.split('\x1B[m').join(defStyle)
 
 		for (let i = 0; i < str.length; i++) {
 			let char = str[i]
@@ -519,7 +508,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 			if (cursor + char.length > w) {
 				if (wordWrap) {
-					const lstSpace = line.findLastIndex(v => v === ' ')
+					const lstSpace = line.lastIndexOf(' ')
 					if (~lstSpace && char.trimEnd()) {
 						const rest = line.splice(lstSpace + 1)
 						char = rest.join('') + char
@@ -559,7 +548,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	static parseHexColor(clr: HexColor): RGBColor {
 		const regexArr = /^#([0-F]{1,2})([0-F]{1,2})([0-F]{1,2})$/i.exec(clr)
 		assert(regexArr && (clr.length === 4 || clr.length === 7),
-			Error(`Invalid hex color: ${clr}`, { cause: clr }))
+			Error(`Invalid hex color: ${clr}`))
 
 
 		return [
@@ -634,16 +623,16 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	}
 
 	/** End-of-Text control character buffer. */
-	static readonly ETX = ETX
+	static readonly ETX: Buffer = ETX
 
 	/** End-of-Transmission control character buffer. */
-	static readonly EOT = EOT
+	static readonly EOT: Buffer = EOT
 
 	/** Alias to {@link TUI.ETX}. */
-	static readonly CTRL_C = ETX
+	static readonly CTRL_C: Buffer = ETX
 
 	/** Alias to {@link TUI.EOT}. */
-	static readonly CTRL_D = EOT
+	static readonly CTRL_D: Buffer = EOT
 
 
 	//? #################################
@@ -742,7 +731,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 						if (clr === 'default') codes.push(39 + off)
 						else if (typeof clr === 'number') {
 							assert(Number.isInteger(clr) && clr >= 0 && clr <= 255,
-								Error(`Invalid index color: ${clr}`, { cause: clr }))
+								Error(`Invalid index color: ${clr}`))
 
 							codes.push(38 + off, 5, clr)
 						} else if (clr.startsWith('#')) {
@@ -762,7 +751,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 									return
 							}
 
-							throw new Error(`Invalid color name: ${clr}`, { cause: clr })
+							throw new Error(`Invalid color name: ${clr}`)
 						}
 					}
 				}

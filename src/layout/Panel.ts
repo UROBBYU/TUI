@@ -3,6 +3,7 @@ import { Color, TUI } from '..'
 import ExtendedEventEmitter from '../events'
 import BorderBox from './BorderBox'
 import MetricBox from './MetricBox'
+import { Dimensions, MinMax, PropLabel } from '@urobbyu/tui/ts'
 
 type ChangeArgN<N extends string, V> = {
 	name: N
@@ -12,8 +13,8 @@ type ChangeArg<N extends string, V, L = V> = ChangeArgN<N, V> & {
 	lastValue: L
 }
 type ChangeProp =
-	ChangeArg<'size', [width: number, height: number]> |
-	ChangeArg<`${'min' | 'max'}${'Width' | 'Height'}`, number> |
+	ChangeArg<'size', Dimensions> |
+	ChangeArg<MinMax, number> |
 	ChangeArgN<'margin' | 'padding', MetricBox> |
 	ChangeArgN<'border', BorderBox> |
 	ChangeArg<'bgColor', Color | 'transparent'>
@@ -132,7 +133,7 @@ const BORDER_STYLES = {
 const getBorderStyle = (style: BorderStyle): CustomBorderStyle => {
 	if (typeof style === 'string') {
 		if (!(style in BORDER_STYLES))
-			throw new Error(`No such default border style - "${style}"`, { cause: style })
+			throw new Error(`No such default border style - "${style}"`)
 
 		return BORDER_STYLES[style]
 	}
@@ -246,16 +247,16 @@ const buildBorderBlock = (
 	return lines
 }
 
-export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], draw: [] }> {
-	#bgColor: Color | 'transparent' = 'transparent'
-	#minWidth = 1
-	#minHeight = 1
-	#width = NaN
-	#height = NaN
-	#maxWidth = Infinity
-	#maxHeight = Infinity
+export class Panel extends ExtendedEventEmitter<{ change: PropLabel<ChangeProp>, draw: [] }> {
+	private _bgColor: Color | 'transparent' = 'transparent'
+	private _minWidth = 1
+	private _minHeight = 1
+	private _width = NaN
+	private _height = NaN
+	private _maxWidth = Infinity
+	private _maxHeight = Infinity
 
-	#drawPropagate = true
+	private _drawPropagate = true
 
 	margin = new MetricBox()
 	padding = new MetricBox()
@@ -298,22 +299,22 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 		me.on('change', function(prop) {
 			switch (prop.name) {
 				case 'size':
-					[me.#width, me.#height] = prop.value
+					[me._width, me._height] = prop.value
 					break
 				case 'minWidth':
-					me.#minWidth = prop.value
+					me._minWidth = prop.value
 					break
 				case 'minHeight':
-					me.#minHeight = prop.value
+					me._minHeight = prop.value
 					break
 				case 'maxWidth':
-					me.#maxWidth = prop.value
+					me._maxWidth = prop.value
 					break
 				case 'maxHeight':
-					me.#maxHeight = prop.value
+					me._maxHeight = prop.value
 					break
 				case 'bgColor':
-					me.#bgColor = prop.value
+					me._bgColor = prop.value
 			}
 		})
 
@@ -324,22 +325,22 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 			me.drawBorder(false)
 			me.tui.style()
 
-			if (!me.#drawPropagate) this.stopPropagation()
+			if (!me._drawPropagate) this.stopPropagation()
 		})
 
 		me.updateSize()
 	}
 
 	draw(propagate = true) {
-		this.#drawPropagate = propagate
+		this._drawPropagate = propagate
 		this.emit('draw')
 		return this
 	}
 
 	drawBorder(applyStyle = true) {
 		if (
-			this.#width < Math.max(0, this.#minWidth) ||
-			this.#height < Math.max(0, this.#minHeight)
+			this._width < Math.max(0, this._minWidth) ||
+			this._height < Math.max(0, this._minHeight)
 		) return this
 
 		const { top: bT, right: bR, bottom: bB, left: bL } = this.border
@@ -355,8 +356,8 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 			bottomright: getBorderStyle(bB.right.style ?? bB.style)
 		}
 
-		const width = this.#width
-		const height = this.#height
+		const width = this._width
+		const height = this._height
 		const pWidth = this.padding.left + width + this.padding.right
 		const pHeight = this.padding.top + height + this.padding.bottom
 		const bAbsX = this.parent.absX + this.margin.left
@@ -414,15 +415,15 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 		this.padding.top -
 		this.padding.bottom
 
-		const width = Math.min(this.#maxWidth, avWidth)
-		const height = Math.min(this.#maxHeight, avHeight)
+		const width = Math.min(this._maxWidth, avWidth)
+		const height = Math.min(this._maxHeight, avHeight)
 
-		if (width === this.#width && height === this.#height) return false
+		if (width === this._width && height === this._height) return false
 
 		this.emit('change', {
 			name: 'size',
 			value: [width, height],
-			lastValue: [this.#width, this.#height]
+			lastValue: [this._width, this._height]
 		})
 		return true
 	}
@@ -448,63 +449,63 @@ export class Panel extends ExtendedEventEmitter<{ change: [prop: ChangeProp], dr
 			this.padding.top
 	}
 
-	get minWidth() { return this.#minWidth }
+	get minWidth() { return this._minWidth }
 	set minWidth(v) {
-		if (this.#minWidth === v) return
+		if (this._minWidth === v) return
 		this.emit('change', {
 			name: 'minWidth',
 			value: v,
-			lastValue: this.#minWidth
+			lastValue: this._minWidth
 		})
 	}
 
-	get minHeight() { return this.#minHeight }
+	get minHeight() { return this._minHeight }
 	set minHeight(v) {
-		if (this.#minHeight === v) return
+		if (this._minHeight === v) return
 		this.emit('change', {
 			name: 'minHeight',
 			value: v,
-			lastValue: this.#minHeight
+			lastValue: this._minHeight
 		})
 	}
 
-	get width() { return this.#width }
+	get width() { return this._width }
 
-	get height() { return this.#height }
+	get height() { return this._height }
 
-	get maxWidth() { return this.#maxWidth }
+	get maxWidth() { return this._maxWidth }
 	set maxWidth(v) {
-		if (this.#maxWidth === v) return
+		if (this._maxWidth === v) return
 		this.emit('change', {
 			name: 'maxWidth',
 			value: v,
-			lastValue: this.#maxWidth
+			lastValue: this._maxWidth
 		})
 		this.updateSize()
 	}
 
-	get maxHeight() { return this.#maxHeight }
+	get maxHeight() { return this._maxHeight }
 	set maxHeight(v) {
-		if (this.#maxHeight === v) return
+		if (this._maxHeight === v) return
 		this.emit('change', {
 			name: 'maxHeight',
 			value: v,
-			lastValue: this.#maxHeight
+			lastValue: this._maxHeight
 		})
 		this.updateSize()
 	}
 
-	get bgColor() { return this.#bgColor }
+	get bgColor() { return this._bgColor }
 	set bgColor(v) {
-		if (this.#bgColor === v) return
+		if (this._bgColor === v) return
 		this.emit('change', {
 			name: 'bgColor',
 			value: v,
-			lastValue: this.#bgColor
+			lastValue: this._bgColor
 		})
 	}
 
 	get _realBgColor(): Color {
-		return this.#bgColor === 'transparent' ? (this.parent instanceof TUI ? 'default' : this.parent._realBgColor) : this.#bgColor
+		return this._bgColor === 'transparent' ? (this.parent instanceof TUI ? 'default' : this.parent._realBgColor) : this._bgColor
 	}
 }

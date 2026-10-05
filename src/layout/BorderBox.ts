@@ -1,9 +1,17 @@
 import ExtendedEventEmitter from '../events'
 import { BorderFill, BorderStyle } from './Panel'
 import { Color } from '..'
+import { BorderCornerParamsGen, BorderEdgeParamsGen, GetSet, SetGet } from '@urobbyu/tui/ts'
 
-type BorderCornerParams = [style: BorderStyle, color?: Color]
-type BorderEdgeParams = [width?: number, style?: BorderStyle, color?: Color, fill?: BorderFill]
+type BorderCornerParams = BorderCornerParamsGen<BorderStyle, Color>
+type BorderEdgeParams = BorderEdgeParamsGen<number, BorderStyle, Color, BorderFill>
+
+type GetBorderCorner = GetSet<BorderCorner, BorderCornerParams>
+type SetBorderCorner = SetGet<BorderCorner, BorderCornerParams>
+type GetBorderBlock = GetSet<BorderBlock, BorderEdgeParams>
+type SetBorderBlock = SetGet<BorderBlock, BorderEdgeParams>
+type GetBorderEdge = GetSet<BorderEdge, BorderEdgeParams>
+type SetBorderEdge = SetGet<BorderEdge, BorderEdgeParams>
 
 type SimpleEdge = {
 	width: number
@@ -19,8 +27,8 @@ const compEdges = (e1: SimpleEdge, e2: SimpleEdge) =>
 	e1.fill === e2.fill
 
 export class BorderCorner extends ExtendedEventEmitter<{ change: [] }> {
-	#style?: BorderStyle
-	#color?: Color
+	private _style?: BorderStyle
+	private _color?: Color
 
 	constructor(
 		style?: BorderStyle,
@@ -28,28 +36,33 @@ export class BorderCorner extends ExtendedEventEmitter<{ change: [] }> {
 	) {
 		super()
 
-		this.#style = style
-		this.#color = color
+		this._style = style
+		this._color = color
 	}
 
-	get style() { return this.#style }
+	get style() { return this._style }
 	set style(v) {
-		if (this.#style === v) return
-		this.#style = v
+		if (this._style === v) return
+		this._style = v
 		this.emit('change')
 	}
 
-	get color() { return this.#color }
+	get color() { return this._color }
 	set color(v) {
-		if (this.#color === v) return
-		this.#color = v
+		if (this._color === v) return
+		this._color = v
 		this.emit('change')
 	}
+
+	protected getStyle() { return this.style }
+	protected setStyle(v: BorderStyle) { this.style = v }
+	protected getColor() { return this.color }
+	protected setColor(v: Color) { this.color = v }
 }
 
 export class BorderEdge extends BorderCorner {
-	#width: number
-	#fill: BorderFill
+	private _width: number
+	private _fill: BorderFill
 
 	constructor(
 		width = 1,
@@ -59,29 +72,29 @@ export class BorderEdge extends BorderCorner {
 	) {
 		super(style, color)
 
-		this.#width = width
-		this.#fill = fill
+		this._width = width
+		this._fill = fill
 	}
 
-	get width() { return this.#width }
+	get width() { return this._width }
 	set width(v) {
-		if (this.#width === v) return
-		this.#width = v
+		if (this._width === v) return
+		this._width = v
 		this.emit('change')
 	}
 
-	get fill() { return this.#fill }
+	get fill() { return this._fill }
 	set fill(v) {
-		if (this.#fill === v) return
-		this.#fill = v
+		if (this._fill === v) return
+		this._fill = v
 		this.emit('change')
 	}
 
-	get style() { return super.style! }
-	set style(v) { super.style = v }
+	get style() { return super.getStyle()! }
+	set style(v) { super.setStyle(v) }
 
-	get color() { return super.color! }
-	set color(v) { super.color = v }
+	get color() { return super.getColor()! }
+	set color(v) { super.setColor(v) }
 
 	get _ref() { return {
 		width: this.width,
@@ -92,8 +105,8 @@ export class BorderEdge extends BorderCorner {
 }
 
 export class BorderBlock extends BorderEdge {
-	#left = new BorderCorner()
-	#right = new BorderCorner()
+	private _left = new BorderCorner()
+	private _right = new BorderCorner()
 
 	constructor(
 		width = 1,
@@ -103,32 +116,32 @@ export class BorderBlock extends BorderEdge {
 	) {
 		super(width, style, color, fill)
 
-		this.#left.on('change', () => this.emit('change'))
-		this.#right.on('change', () => this.emit('change'))
+		this._left.on('change', () => this.emit('change'))
+		this._right.on('change', () => this.emit('change'))
 	}
 
-	get left(): BorderCorner { return this.#left }
-	set left(v: BorderCornerParams) {
+	get left(): GetBorderCorner { return this._left }
+	set left(v: SetBorderCorner) {
 		if (this.suppress(() => {
-			this.#left.style = v[0]
-			this.#left.color = v[1] ?? this.#left.color
+			this._left.style = v[0]
+			this._left.color = v[1] ?? this._left.color
 		})().length) this.emit('change')
 	}
 
-	get right(): BorderCorner { return this.#right }
-	set right(v: BorderCornerParams) {
+	get right(): GetBorderCorner { return this._right }
+	set right(v: SetBorderCorner) {
 		if (this.suppress(() => {
-			this.#right.style = v[0]
-			this.#right.color = v[1] ?? this.#right.color
+			this._right.style = v[0]
+			this._right.color = v[1] ?? this._right.color
 		})().length) this.emit('change')
 	}
 }
 
 export default class BorderBox extends ExtendedEventEmitter<{ change: [] }> {
-	#top: BorderBlock
-	#right: BorderEdge
-	#bottom: BorderBlock
-	#left: BorderEdge
+	private _top: BorderBlock
+	private _right: BorderEdge
+	private _bottom: BorderBlock
+	private _left: BorderEdge
 
 	constructor(
 		width = 1,
@@ -138,77 +151,77 @@ export default class BorderBox extends ExtendedEventEmitter<{ change: [] }> {
 	) {
 		super()
 
-		this.#top = new BorderBlock(width, style, color, fill)
+		this._top = new BorderBlock(width, style, color, fill)
 		.on('change', () => this.emit('change'))
 
-		this.#right = new BorderEdge(width, style, color, fill)
+		this._right = new BorderEdge(width, style, color, fill)
 		.on('change', () => this.emit('change'))
 
-		this.#bottom = new BorderBlock(width, style, color, fill)
+		this._bottom = new BorderBlock(width, style, color, fill)
 		.on('change', () => this.emit('change'))
 
-		this.#left = new BorderEdge(width, style, color, fill)
+		this._left = new BorderEdge(width, style, color, fill)
 		.on('change', () => this.emit('change'))
 	}
 
-	get top(): BorderBlock { return this.#top }
-	set top(v: number | BorderEdgeParams) {
-		const ref = this.#top._ref
+	get top(): GetBorderBlock { return this._top }
+	set top(v: SetBorderBlock) {
+		const ref = this._top._ref
 
 		if (Array.isArray(v)) {
-			this.#top.width = v[0] ?? this.#top.width
-			this.#top.style = v[1] ?? this.#top.style
-			this.#top.color = v[2] ?? this.#top.color
-			this.#top.fill = v[3] ?? this.#top.fill
-		} else this.#top.width = v
+			this._top.width = v[0] ?? this._top.width
+			this._top.style = v[1] ?? this._top.style
+			this._top.color = v[2] ?? this._top.color
+			this._top.fill = v[3] ?? this._top.fill
+		} else this._top.width = v
 
-		if (!compEdges(ref, this.#top)) this.emit('change')
+		if (!compEdges(ref, this._top)) this.emit('change')
 	}
 
-	get right(): BorderEdge { return this.#right }
-	set right(v: number | BorderEdgeParams) {
-		const ref = this.#right._ref
+	get right(): GetBorderEdge { return this._right }
+	set right(v: SetBorderEdge) {
+		const ref = this._right._ref
 
 		if (Array.isArray(v)) {
-			this.#right.width = v[0] ?? this.#right.width
-			this.#right.style = v[1] ?? this.#right.style
-			this.#right.color = v[2] ?? this.#right.color
-			this.#right.fill = v[3] ?? this.#right.fill
-		} else this.#right.width = v
+			this._right.width = v[0] ?? this._right.width
+			this._right.style = v[1] ?? this._right.style
+			this._right.color = v[2] ?? this._right.color
+			this._right.fill = v[3] ?? this._right.fill
+		} else this._right.width = v
 
-		if (!compEdges(ref, this.#right)) this.emit('change')
+		if (!compEdges(ref, this._right)) this.emit('change')
 	}
 
-	get bottom(): BorderBlock { return this.#bottom }
-	set bottom(v: number | BorderEdgeParams) {
-		const ref = this.#bottom._ref
+	get bottom(): GetBorderBlock { return this._bottom }
+	set bottom(v: SetBorderBlock) {
+		const ref = this._bottom._ref
 
 		if (Array.isArray(v)) {
-			this.#bottom.width = v[0] ?? this.#bottom.width
-			this.#bottom.style = v[1] ?? this.#bottom.style
-			this.#bottom.color = v[2] ?? this.#bottom.color
-			this.#bottom.fill = v[3] ?? this.#bottom.fill
-		} else this.#bottom.width = v
+			this._bottom.width = v[0] ?? this._bottom.width
+			this._bottom.style = v[1] ?? this._bottom.style
+			this._bottom.color = v[2] ?? this._bottom.color
+			this._bottom.fill = v[3] ?? this._bottom.fill
+		} else this._bottom.width = v
 
-		if (!compEdges(ref, this.#bottom)) this.emit('change')
+		if (!compEdges(ref, this._bottom)) this.emit('change')
 	}
 
-	get left(): BorderEdge { return this.#left }
-	set left(v: number | BorderEdgeParams) {
-		const ref = this.#left._ref
+	get left(): GetBorderEdge { return this._left }
+	set left(v: SetBorderEdge) {
+		const ref = this._left._ref
 
 		if (Array.isArray(v)) {
-			this.#left.width = v[0] ?? this.#left.width
-			this.#left.style = v[1] ?? this.#left.style
-			this.#left.color = v[2] ?? this.#left.color
-			this.#left.fill = v[3] ?? this.#left.fill
-		} else this.#left.width = v
+			this._left.width = v[0] ?? this._left.width
+			this._left.style = v[1] ?? this._left.style
+			this._left.color = v[2] ?? this._left.color
+			this._left.fill = v[3] ?? this._left.fill
+		} else this._left.width = v
 
-		if (!compEdges(ref, this.#left)) this.emit('change')
+		if (!compEdges(ref, this._left)) this.emit('change')
 	}
 
-	get inline(): number { return this.#left.width + this.#right.width }
-	set inline(v: number | BorderEdgeParams) {
+	get inline(): number { return this._left.width + this._right.width }
+	set inline(v: BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.left = this.right = v
 		})()
@@ -216,8 +229,8 @@ export default class BorderBox extends ExtendedEventEmitter<{ change: [] }> {
 		if (events.length) this.emit('change')
 	}
 
-	get block(): number { return this.#top.width + this.#bottom.width }
-	set block(v: number | BorderEdgeParams) {
+	get block(): number { return this._top.width + this._bottom.width }
+	set block(v: BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.top = this.bottom = v
 		})()
@@ -226,7 +239,7 @@ export default class BorderBox extends ExtendedEventEmitter<{ change: [] }> {
 	}
 
 	get all(): number { return this.inline + this.block }
-	set all(v: number | BorderEdgeParams) {
+	set all(v: BorderEdgeParams) {
 		const events = this.suppress(() => {
 			this.inline = this.block = v
 		})()

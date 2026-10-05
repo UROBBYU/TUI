@@ -1,14 +1,13 @@
-import { EventEmitter } from 'node:events'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { AnyRest, ArrayOf } from '@urobbyu/tui/ts'
 
 type DefaultEventMap = [never]
 type EventMap<T> = Record<keyof T, any[]> | DefaultEventMap
 type IfDef<K, T, F> = K extends DefaultEventMap ? T : F
-type AnyRest = [...args: any[]]
-type Args<K, T> = IfDef<T, AnyRest, K extends keyof T ? (T[K] extends unknown[] ? [...T[K]] : never) : never>
+type Args<K, T> = IfDef<T, AnyRest, K extends keyof T ? ArrayOf<T[K]> : never>
 type Key<K, T> = IfDef<T, string | symbol, K | keyof T>
 type Key2<T> = IfDef<T, string | symbol, keyof T>
-type Listener<K, T> = IfDef<T, (...args: any[]) => void, (K extends keyof T ? (T[K] extends unknown[] ? (...args: T[K]) => void : never) : never)>
+type Listener<K, T> = IfDef<T, (...args: any[]) => void, (K extends keyof T ? (T[K] extends infer A ? A extends unknown[] ? (...args: A) => void : never : never) : never)>
 
 type WrapperData<K, T extends EventMap<T>, E extends ExtendedEventEmitter<T>> = {
 	readonly _listener: ExtendedListener<K, T, E>
@@ -36,7 +35,7 @@ type SuppressedFunc = () => Map<ExtendedEventEmitter<any>, Key2<any>[]> | Key2<a
 const asyncLocalStorage = new AsyncLocalStorage<Map<ExtendedEventEmitter<any> | null, Key2<any>[]>>()
 
 /** Custom variant of Event Emitter with useful methods from both Node.JS and Web versions. */
-export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMap> implements EventEmitter<T> {
+export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMap> {
 	protected _events: Events<Key2<T>, T, this> = {}
 	protected _maxListeners = 10
 
@@ -107,8 +106,8 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		Object.defineProperties(wrappedListener, dataProperties)
 
 		if (toEnd) {
-			var i = arr.findLastIndex(v => v._level <= level) + 1
-			if (!i) i = 0
+			var i = arr.length
+			while (i > 0 && arr[i - 1]._level > level) i--
 		} else {
 			var i = arr.findIndex(v => v._level >= level)
 			if (!~i) i = arr.length
@@ -146,8 +145,9 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 		const arr = this._events[eventName as Key2<T>]
 
 		if (arr) {
-			const i = arr.findLastIndex(l => l._listener === listener)
-			arr.splice(i, 1)
+			let i = arr.length - 1
+			while (i >= 0 && arr[i]._listener !== listener) i--
+			if (i >= 0) arr.splice(i, 1)
 			if (!arr.length) delete this._events[eventName as Key2<T>]
 		}
 		return this
