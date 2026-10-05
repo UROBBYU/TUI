@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import ExtendedEventEmitter from './events'
-import { Readable, Writable } from 'node:stream'
+import { Stream } from 'node:stream'
 import { TUIEvents, BrightColorList, HexColor, RGBColor, RGBRange, ColorList } from '@urobbyu/tui/ts'
 
 type WinFix = {
@@ -8,14 +8,21 @@ type WinFix = {
 	setConsoleMode(mode: number): void
 }
 
-type InputStream = Readable & {
+type InputStream = Stream.Readable & {
 	isRaw?: boolean
 	setRawMode?(is?: boolean): void
 }
-
-type OutputStream = Writable & {
+type OutputStream = Stream.Writable & {
 	columns?: number
 	rows?: number
+}
+interface TUIOptions {
+	exitOnCtrlC?: boolean
+	exitOnCtrlD?: boolean
+}
+interface TUIStreamOptions extends TUIOptions {
+	stdin?: InputStream
+	stdout?: OutputStream
 }
 
 type ColorIndex = number
@@ -78,27 +85,38 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	private _lastRawMode: boolean
 	private _active = false
 	private _altBuffer = false
+	private _options: Required<TUIOptions>
+
+	sin: InputStream
+	sout: OutputStream
 
 	/**
 	 * Creates a TUI instance bound to the provided input and output streams.
 	 *
-	 * @param sin - The terminal input stream.
-	 * @param sout - The terminal output stream.
+	 * @param stdin - The terminal input stream.
+	 * @param stdout - The terminal output stream.
 	 * @param options - Optional behavior settings for Ctrl+C and Ctrl+D handling.
 	 */
+	constructor(stdin?: InputStream, stdout?: OutputStream, options?: TUIOptions)
+	constructor(options?: TUIStreamOptions)
 	constructor(
-		public sin: InputStream,
-		public sout: OutputStream,
-		private options: {
-			exitOnCtrlC: boolean,
-			exitOnCtrlD: boolean
-		} = {
-			exitOnCtrlC: true,
-			exitOnCtrlD: true
-		}
+		stdin?: InputStream | TUIStreamOptions,
+		stdout?: OutputStream,
+		options?: TUIOptions,
 	) {
 		super()
-		this._lastRawMode = Boolean(sin.isRaw)
+
+		if (stdin && !(stdin instanceof Stream))
+			({stdin: stdin, stdout, ...options} = stdin)
+
+		this.sin = stdin ?? process.stdin
+		this.sout = stdout ?? process.stdout
+		this._lastRawMode = Boolean(this.sin.isRaw)
+		this._options = {
+			exitOnCtrlC: true,
+			exitOnCtrlD: true,
+			...options,
+		}
 
 		this.on('close', () => this.exit()).on('end', () => this.exit())
 		process.once('exit', () => this.exit())
@@ -392,8 +410,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 			this.emit('data', data)
 
 			if (
-				(this.options.exitOnCtrlC && data.equals(TUI.CTRL_C))
-				|| (this.options.exitOnCtrlD && data.equals(TUI.CTRL_D))
+				(this._options.exitOnCtrlC && data.equals(TUI.CTRL_C))
+				|| (this._options.exitOnCtrlD && data.equals(TUI.CTRL_D))
 			) this.emit('end')
 		}
 	}
