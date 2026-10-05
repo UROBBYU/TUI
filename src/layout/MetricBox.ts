@@ -1,10 +1,11 @@
 import ExtendedEventEmitter from '../events'
+import { InlineSetter, BlockSetter, AllSetter } from '@urobbyu/tui/ts'
 
 export default class MetricBox extends ExtendedEventEmitter<{ change: [] }> {
-	#top: number
-	#right: number
-	#bottom: number
-	#left: number
+	private _top: number
+	private _right: number
+	private _bottom: number
+	private _left: number
 
 	constructor()
 	constructor(options: {
@@ -18,91 +19,91 @@ export default class MetricBox extends ExtendedEventEmitter<{ change: [] }> {
 		super()
 
 		const [t, r, b, l] = args
-		this.#top = +(t?.top ?? t) || 0
-		this.#right = +(t?.right ?? r ?? t) || 0
-		this.#bottom = +(t?.bottom ?? b ?? t) || 0
-		this.#left = +(t?.left ?? l ?? r ?? t) || 0
+		this._top = +(t?.top ?? t) || 0
+		this._right = +(t?.right ?? r ?? t) || 0
+		this._bottom = +(t?.bottom ?? b ?? t) || 0
+		this._left = +(t?.left ?? l ?? r ?? t) || 0
 	}
 
-	get top() { return this.#top }
+	get top() { return this._top }
 	set top(v) {
-		if (this.#top !== v) {
-			this.#top = v
+		if (this._top !== v) {
+			this._top = v
 			this.emit('change')
 		}
 	}
 
-	get right() { return this.#right }
+	get right() { return this._right }
 	set right(v) {
-		if (this.#right !== v) {
-			this.#right = v
+		if (this._right !== v) {
+			this._right = v
 			this.emit('change')
 		}
 	}
 
-	get bottom() { return this.#bottom }
+	get bottom() { return this._bottom }
 	set bottom(v) {
-		if (this.#bottom !== v) {
-			this.#bottom = v
+		if (this._bottom !== v) {
+			this._bottom = v
 			this.emit('change')
 		}
 	}
 
-	get left() { return this.#left }
+	get left() { return this._left }
 	set left(v) {
-		if (this.#left !== v) {
-			this.#left = v
+		if (this._left !== v) {
+			this._left = v
 			this.emit('change')
 		}
 	}
 
-	get inline(): number { return this.#left + this.#right }
-	set inline(v: number | [left: number, right: number]) {
-		const left = this.#left
-		const right = this.#right
+	get inline(): number { return this._left + this._right }
+	set inline(v: InlineSetter) {
+		const left = this._left
+		const right = this._right
 
 		if (typeof v === 'number')
-			this.#left = this.#right = v
-		else [this.#left, this.#right] = v
+			this._left = this._right = v
+		else [this._left, this._right] = v
 
-		if (this.#left !== left || this.#right !== right)
+		if (this._left !== left || this._right !== right)
 			this.emit('change')
 	}
 
-	get block(): number { return this.#top + this.#bottom }
-	set block(v: number | [top: number, bottom: number]) {
-		const top = this.#top
-		const bottom = this.#bottom
+	get block(): number { return this._top + this._bottom }
+	set block(v: BlockSetter) {
+		const top = this._top
+		const bottom = this._bottom
 
 		if (typeof v === 'number')
-			this.#top = this.#bottom = v
-		else [this.#top, this.#bottom] = v
+			this._top = this._bottom = v
+		else [this._top, this._bottom] = v
 
-		if (this.#top !== top || this.#bottom !== bottom)
+		if (this._top !== top || this._bottom !== bottom)
 			this.emit('change')
 	}
 
 	get all(): number { return this.inline + this.block }
-	set all(v: number | [top: number, right: number, bottom?: number, left?: number]) {
-		const top = this.#top
-		const right = this.#right
-		const bottom = this.#bottom
-		const left = this.#left
+	set all(v: AllSetter) {
+		const top = this._top
+		const right = this._right
+		const bottom = this._bottom
+		const left = this._left
 
 		if (typeof v === 'number')
-			this.#top = this.#right = this.#bottom = this.#left = v
+			this._top = this._right = this._bottom = this._left = v
 		else {
-			this.#top = v[0]
-			this.#right = v[1]
-			this.#bottom = v[2] ?? v[0]
-			this.#left = v[3] ?? v[1]
+			this._top = v[0]
+			this._right = v[1]
+			this._bottom = v[2] ?? v[0]
+			this._left = v[3] ?? v[1]
 		}
 
 		if (
-			this.#top !== top ||
-			this.#right !== right ||
-			this.#bottom !== bottom ||
-			this.#left !== left
+			this._top !== top ||
+			this._right !== right ||
+			this._bottom !== bottom ||
+			this._left !== left
 		) this.emit('change')
 	}
 }

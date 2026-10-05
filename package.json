@@ -12,10 +12,16 @@
 	},
 	"main": "index.js",
 	"types": "index.d.ts",
+	"typesVersions": {
+		">=5.1": { "ts": [ "ts/v5.1.d.ts" ] },
+		">=4.3": { "ts": [ "ts/v4.3.d.ts" ] },
+		">=4.1": { "ts": [ "ts/v4.1.d.ts" ] },
+		">=4.0": { "ts": [ "ts/v4.0.d.ts" ] }
+	},
 	"scripts": {
 		"prebuild": "node-gyp rebuild && shx cp build/Release/winfix.node src/ && shx rm -rf build",
 		"build": "tsc",
-		"postbuild": "shx cp src/keys.json src/winfix.node dist/",
+		"postbuild": "shx cp -r src/keys.json src/winfix.node src/ts dist/",
 		"clear": "shx rm -rf dist/",
 		"build-gyp": "npm run prebuild"
 	},
