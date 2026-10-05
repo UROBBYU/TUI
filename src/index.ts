@@ -355,7 +355,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 			code = opt
 		} else {
-			assert(opt in CURSOR_STYLES,
+			assert(CURSOR_STYLES.hasOwnProperty(opt),
 				Error(`Invalid style: "${opt}"`))
 
 			code = CURSOR_STYLES[opt]

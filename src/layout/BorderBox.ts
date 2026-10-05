@@ -40,24 +40,24 @@ export class BorderCorner extends ExtendedEventEmitter<{ change: [] }> {
 		this._color = color
 	}
 
-	get style() { return this._style }
-	set style(v) {
+	protected getStyle() { return this._style }
+	protected setStyle(v?: BorderStyle) {
 		if (this._style === v) return
 		this._style = v
 		this.emit('change')
 	}
-
-	get color() { return this._color }
-	set color(v) {
+	protected getColor() { return this._color }
+	protected setColor(v?: Color) {
 		if (this._color === v) return
 		this._color = v
 		this.emit('change')
 	}
 
-	protected getStyle() { return this.style }
-	protected setStyle(v: BorderStyle) { this.style = v }
-	protected getColor() { return this.color }
-	protected setColor(v: Color) { this.color = v }
+	get style() { return this.getStyle() }
+	set style(v) { this.setStyle(v) }
+
+	get color() { return this.getColor() }
+	set color(v) { this.setColor(v) }
 }
 
 export class BorderEdge extends BorderCorner {
