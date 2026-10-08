@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import ExtendedEventEmitter from './events'
-import { Stream } from 'node:stream'
+import { Stream, Readable, Writable } from 'node:stream'
 import { TUIEvents, BrightColorList, HexColor, RGBColor, RGBRange, ColorList } from '@urobbyu/tui/ts'
 
 type WinFix = {
@@ -8,11 +8,11 @@ type WinFix = {
 	setConsoleMode(mode: number): void
 }
 
-type InputStream = Stream.Readable & {
+type InputStream = Readable & {
 	isRaw?: boolean
 	setRawMode?(is?: boolean): void
 }
-type OutputStream = Stream.Writable & {
+type OutputStream = Writable & {
 	columns?: number
 	rows?: number
 }
