@@ -1,6 +1,7 @@
 export * from '.'
 
 export type Dimensions = [width: number, height: number]
+export type Position = [row: number, column: number]
 
 export type AnyRest = [...args: any[]]
 export type ArrayOf<V> = V extends unknown[] ? [...V] : never

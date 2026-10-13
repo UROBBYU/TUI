@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import ExtendedEventEmitter from './events'
 import { Stream, Readable, Writable } from 'node:stream'
-import { TUIEvents, BrightColorList, HexColor, RGBColor, RGBRange, ColorList } from '@urobbyu/tui/ts'
+import { TUIEvents, BrightColorList, HexColor, RGBColor, RGBRange, ColorList, Position } from '@urobbyu/tui/ts'
 
 type WinFix = {
 	getConsoleMode(): number
@@ -23,6 +23,9 @@ interface TUIOptions {
 interface TUIStreamOptions extends TUIOptions {
 	stdin?: InputStream
 	stdout?: OutputStream
+}
+interface TUISignalEvents {
+    cpr: Position
 }
 
 type ColorIndex = number
@@ -86,6 +89,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	private _active = false
 	private _altBuffer = false
 	private _options: Required<TUIOptions>
+	private _signal = new ExtendedEventEmitter<TUISignalEvents>()
 
 	sin: InputStream
 	sout: OutputStream
@@ -295,6 +299,42 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** Sets absolute 1-based cursor position. _(default = [1,1])_ */
 	cursorPosition(row = 1, col = 1) { return this.write(TUI.cursorPosition(row, col)) }
 
+	/**
+	 * Queries the terminal for the current cursor position.
+	 * The input stream must be in raw mode unless `force` is `true`.
+	 *
+	 * @param force - Temporarily enables raw mode and restores its previous state afterward. _(default = false)_
+	 * @returns A promise resolving to `[row, column]`, both 1-based numbers.
+	 */
+	getCursorPosition(force = false): Promise<Position> {
+		const wasRaw = this.sin.isRaw
+		if (force) this.rawMode()
+
+		assert(this.sin.isRaw, 'Input stream must be in raw mode to get cursor position')
+
+		const promise = new Promise<Position>((res, rej) => {
+			const handler = this._signal.wrapListener<'cpr'>(function (...pos) {
+				clearTimeout(timeout)
+				this.stopPropagation()
+				res(pos)
+			})
+
+			const timeout = setTimeout(() => {
+				this._signal.off('cpr', handler)
+				rej(Error('Timeout waiting for cursor position'))
+			}, 1e3)
+
+			this._signal.once('cpr', handler)
+			this.write(TUI.cursorPositionReport)
+		})
+
+		promise.finally(() => {
+			if (force) this.rawMode(wasRaw)
+		})
+
+		return promise
+	}
+
 	/** Moves cursor relative to current position. */
 	move(col: number, row: number) {
 		assert(Number.isInteger(col) && Number.isInteger(row),
@@ -406,7 +446,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	}
 
 	protected readonly _dataListener = (data: Buffer) => {
-		if (this._active) {
+		const str = data.toString()
+		const reg = /^\x1B\[(\d+);(\d+)R$/.exec(str)
+
+		if (reg && this._signal.listenerCount('cpr')) {
+			this._signal.emit('cpr', +reg[1], +reg[2])
+		} else if (this._active) {
 			this.emit('data', data)
 
 			if (
@@ -725,6 +770,12 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `CSI Ps ; Ps H` - Cursor Position [row;column] (CUP). _(default = [1,1])_ */
 	static cursorPosition(row = 1, col = 1) { return TUI.CSI(row, ';', col, 'H') }
+
+	/** `CSI 5 n` - Device Status Report (DSR), VT100. */
+	static deviceStatusReport = TUI.CSI(5, 'n')
+
+	/** `CSI 6 n` - Cursor Position Report (CPR), VT100. */
+	static cursorPositionReport = TUI.CSI(6, 'n')
 
 	/** `CSI Pm m` - Character Attributes (SGR). _(default = clear)_ */
 	static style(): string
