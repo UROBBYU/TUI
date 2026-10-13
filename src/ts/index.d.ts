@@ -1,4 +1,5 @@
 export type Dimensions = [/** width */ number, /** height */ number]
+export type Position = [/** row */ number, /** column */ number]
 
 //#region events
 export type AnyRest = any[]

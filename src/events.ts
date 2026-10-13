@@ -213,10 +213,9 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 	}
 
 	listenerCount<K>(eventName: Key<K, T>, listener?: Listener<K, T>): number {
-		let arr = this._events[eventName as Key2<T>]
-		if (!arr) return 0
+		let arr = this.rawListeners(eventName)
 
-		if (listener !== undefined) arr = arr.filter(e => e._listener === listener)
+		if (listener) arr = arr.filter(e => e._listener === listener)
 		return arr.length
 	}
 
@@ -226,6 +225,8 @@ export default class ExtendedEventEmitter<T extends EventMap<T> = DefaultEventMa
 			...Object.getOwnPropertySymbols(this._events)
 		] as any
 	}
+
+	wrapListener<K extends Key2<T>>(listener: ExtendedListener<K, T, this>) { return listener }
 
 	/** Alias for static method `.suppress(fn, ...targets)` with `this` as it's only target. */
 	suppress(fn: () => void): () => Key2<T>[] {
