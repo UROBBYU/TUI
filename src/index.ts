@@ -404,23 +404,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	cursorStyle(code: number): this
 	/** Sets cursor style. */
 	cursorStyle(style: keyof typeof CURSOR_STYLES): this
-	cursorStyle(opt: keyof typeof CURSOR_STYLES | number = 0) {
-		let code: number
-
-		if (typeof opt === 'number') {
-			assert(Number.isInteger(opt) && opt >= 0 && opt <= 6,
-				Error(`Invalid style code: ${opt}`))
-
-			code = opt
-		} else {
-			assert(CURSOR_STYLES.hasOwnProperty(opt),
-				Error(`Invalid style: "${opt}"`))
-
-			code = CURSOR_STYLES[opt]
-		}
-
-		return this.write(TUI.cursorStyle(code))
-	}
+	cursorStyle(opt?: any) { return this.write(TUI.cursorStyle(opt)) }
 
 	/** Toggles cursor visibility. _(default = true)_ */
 	cursorVisible(is = true) { return this.write(TUI.cursorVisible(is)) }
@@ -841,9 +825,11 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		return TUI.CSI(codes.join(';'), 'm')
 	}
 
-	/** `CSI Ps SP q` - Set cursor style (DECSCUSR), VT520.
+	/** `CSI Ps SP q` - Set cursor style (DECSCUSR), VT520. _(default = normal)_ */
+	static cursorStyle(): string
+	/** Sets cursor style.
 	 *
-	 * - 0 ⇒ normal _(default)_
+	 * - 0 ⇒ normal
 	 * - 1 ⇒ blinking block
 	 * - 2 ⇒ steady block
 	 * - 3 ⇒ blinking underline
@@ -851,7 +837,26 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * - 5 ⇒ blinking bar, xterm
 	 * - 6 ⇒ steady bar, xterm
 	 * */
-	static cursorStyle(code = 0) { return TUI.CSI(code, ' ', 'q') }
+	static cursorStyle(code: number): string
+	/** Sets cursor style. */
+	static cursorStyle(style: keyof typeof CURSOR_STYLES): string
+	static cursorStyle(opt: keyof typeof CURSOR_STYLES | number = 0) {
+		let code: number
+
+		if (typeof opt === 'number') {
+			assert(Number.isInteger(opt) && opt >= 0 && opt <= 6,
+				Error(`Invalid style code: ${opt}`))
+
+			code = opt
+		} else {
+			assert(CURSOR_STYLES.hasOwnProperty(opt),
+				Error(`Invalid style: "${opt}"`))
+
+			code = CURSOR_STYLES[opt]
+		}
+
+		return TUI.CSI(code, ' ', 'q')
+	}
 
 	/** `CSI ? 25 h/l` - Show/Hide cursor (DECTCEM), VT220. _(default = show)_ */
 	static cursorVisible(is = true) { return TUI.CSIBool('?25', is) }
