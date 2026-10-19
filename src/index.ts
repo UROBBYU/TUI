@@ -851,7 +851,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * - 5 ⇒ blinking bar, xterm
 	 * - 6 ⇒ steady bar, xterm
 	 * */
-	static cursorStyle(code = 0) { return TUI.CSI(code, 'q') }
+	static cursorStyle(code = 0) { return TUI.CSI(code, ' ', 'q') }
 
 	/** `CSI ? 25 h/l` - Show/Hide cursor (DECTCEM), VT220. _(default = show)_ */
 	static cursorVisible(is = true) { return TUI.CSIBool('?25', is) }
