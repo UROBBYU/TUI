@@ -772,40 +772,34 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		if (typeof fst === 'number') {
 			codes = [fst, ...rst]
 		} else if (fst) {
-			if (fst.reset) codes = [0]
-			else {
-				const pc = (opt: Style['bold'], t: number, f = t + 20, d = t) => {
-					if (opt !== undefined)
-						codes.push(opt ? (opt === 2 ? d : t) : f)
-				}
-
-				const cc = (clr?: Color, off = 0) => {
-					if (clr !== undefined) {
-						if (clr === 'default') codes.push(39 + off)
-						else if (typeof clr === 'number') {
-							assert(Number.isInteger(clr) && clr >= 0 && clr <= 255,
-								Error(`Invalid index color: ${clr}`))
-
-							codes.push(38 + off, 5, clr)
-						} else if (clr.startsWith('#')) {
-							codes.push(38 + off, 2, ...TUI.parseHexColor(clr as HexColor))
-						} else {
-							const colorArr = clr.split('-')
-
-							switch (colorArr.length) {
-								case 2:
-									const brt = colorArr.shift()
-									if (brt !== 'bright') break
-									off += 60
-								case 1:
-									const clr = colorArr[0] as 'red'
-									if (!(clr in COLOR_LIST)) break
-									codes.push(COLOR_LIST[clr] + off)
-									return
-							}
-
-							throw new Error(`Invalid color name: ${clr}`)
+			if (fst.reset) codes.push(0)
+			const pc = (opt: Style['bold'], t: number, f = t + 20, d = t) => {
+				if (opt !== undefined)
+					codes.push(opt ? (opt === 2 ? d : t) : f)
+			}
+			const cc = (clr?: Color, off = 0) => {
+				if (clr !== undefined) {
+					if (clr === 'default') codes.push(39 + off)
+					else if (typeof clr === 'number') {
+						assert(Number.isInteger(clr) && clr >= 0 && clr <= 255,
+							Error(`Invalid index color: ${clr}`))
+						codes.push(38 + off, 5, clr)
+					} else if (clr.startsWith('#')) {
+						codes.push(38 + off, 2, ...TUI.parseHexColor(clr as HexColor))
+					} else {
+						const colorArr = clr.split('-')
+						switch (colorArr.length) {
+							case 2:
+								const brt = colorArr.shift()
+								if (brt !== 'bright') break
+								off += 60
+							case 1:
+								const clr = colorArr[0] as 'red'
+								if (!(clr in COLOR_LIST)) break
+								codes.push(COLOR_LIST[clr] + off)
+								return
 						}
+						throw new Error(`Invalid color name: ${clr}`)
 					}
 				}
 
