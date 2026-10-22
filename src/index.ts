@@ -354,7 +354,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** Moves cursor to home position (1, 1). */
 	moveTo(): this
-	/** Moves cursor to absolute position. \
+	/** Moves cursor to absolute position.
 	 *
 	 * If position is in range [0; 1], it will
 	 * be normalized relative to terminal size.
@@ -364,17 +364,21 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		assert(col >= 0 && row >= 0,
 			Error('Absolute position cannot be negative'))
 
-		assert(this.width && this.height, 'This method is not available for output streams without width and height')
-
 		if (col < 1) {
+			assert(this.width,
+				'Fractional positioning is not available for output streams without width and height')
+
 			col = Math.round(col * (this.width - 1) + 1)
 		} else assert(Number.isInteger(col),
-			Error('Position cannot be fractional'))
+			Error('Position above 1 cannot be fractional'))
 
 		if (row < 1) {
+			assert(this.height,
+				'Fractional positioning is not available for output streams without width and height')
+
 			row = Math.round(row * (this.height - 1) + 1)
 		} else assert(Number.isInteger(row),
-			Error('Position cannot be fractional'))
+			Error('Position above 1 cannot be fractional'))
 
 		return this.cursorPosition(row, col)
 	}
