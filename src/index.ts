@@ -85,7 +85,7 @@ const interpRGB = (range: RGBRange, percent: number): RGBColor => [
 
 /** Text-based User Interface. */
 export class TUI extends ExtendedEventEmitter<TUIEvents> {
-	private _lastRawMode: boolean
+	private _lastRawMode = false
 	private _active = false
 	private _altBuffer = false
 	private _options: Required<TUIOptions>
@@ -115,7 +115,6 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 		this.sin = stdin ?? process.stdin
 		this.sout = stdout ?? process.stdout
-		this._lastRawMode = Boolean(this.sin.isRaw)
 		this._options = {
 			exitOnCtrlC: true,
 			exitOnCtrlD: true,
@@ -140,6 +139,8 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 */
 	init(alt = true, raw = true) {
 		if (!this._active) {
+			this._lastRawMode = Boolean(this.sin.isRaw)
+
 			if (alt) this.altBuffer()
 			if (raw) this.rawMode()
 
