@@ -141,7 +141,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	init(alt = true, raw = true) {
 		if (!this._active) {
 			this._lastRawMode = Boolean(this.sin.isRaw)
-			this._lastInputPaused = this.sin.isPaused()
+			this._lastInputPaused = this.sin.readableFlowing !== true
 
 			if (alt) this.altBuffer()
 			if (raw) this.rawMode()
