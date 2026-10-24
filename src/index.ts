@@ -338,19 +338,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** Moves cursor relative to current position. */
 	move(col: number, row: number) {
-		assert(Number.isInteger(col) && Number.isInteger(row),
-			Error('Position cannot be fractional'))
-
-		if (col) {
-			if (col < 0) this.cursorLeft(-col)
-			else this.cursorRight(col)
-		}
-		if (row) {
-			if (row < 0) this.cursorUp(-row)
-			else this.cursorDown(row)
-		}
-
-		return this
+		return this.write(TUI.move(row, col))
 	}
 
 	/** Moves cursor to home position (1, 1). */
@@ -759,6 +747,26 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** `CSI Ps ; Ps H` - Cursor Position [row;column] (CUP). _(default = [1,1])_ */
 	static cursorPosition(row = 1, col = 1) { return TUI.CSI(row, ';', col, 'H') }
+
+	/** Generates an escape sequence that moves the cursor relative to its current position. */
+	static move(row: number, col: number) {
+		assert(Number.isInteger(row) && Number.isInteger(col),
+			Error('Position cannot be fractional'))
+
+		let sequence = ''
+
+		if (col) {
+			if (col < 0) sequence += TUI.cursorLeft(-col)
+			else sequence += TUI.cursorRight(col)
+		}
+
+		if (row) {
+			if (row < 0) sequence += TUI.cursorUp(-row)
+			else sequence += TUI.cursorDown(row)
+		}
+
+		return sequence
+	}
 
 	/** `CSI 5 n` - Device Status Report (DSR), VT100. */
 	static deviceStatusReport = TUI.CSI(5, 'n')
