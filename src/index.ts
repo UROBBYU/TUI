@@ -338,8 +338,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 
 	/** Moves cursor relative to current position. */
 	move(col: number, row: number) {
-		const sequence = TUI.move(row, col)
-		return sequence ? this.write(sequence) : this
+		return this.write(TUI.move(row, col))
 	}
 
 	/** Moves cursor to home position (1, 1). */
@@ -749,7 +748,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** `CSI Ps ; Ps H` - Cursor Position [row;column] (CUP). _(default = [1,1])_ */
 	static cursorPosition(row = 1, col = 1) { return TUI.CSI(row, ';', col, 'H') }
 
-	/** Returns ANSI codes to move the cursor relative to its current position. */
+	/** Generates an escape sequence that moves the cursor relative to its current position. */
 	static move(row: number, col: number) {
 		assert(Number.isInteger(row) && Number.isInteger(col),
 			Error('Position cannot be fractional'))
@@ -762,7 +761,7 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		}
 
 		if (row) {
-		if (row < 0) sequence += TUI.cursorUp(-row)
+			if (row < 0) sequence += TUI.cursorUp(-row)
 			else sequence += TUI.cursorDown(row)
 		}
 
