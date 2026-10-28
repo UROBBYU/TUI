@@ -615,20 +615,28 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 */
 	static progressBar(text: string, progress: number, bg: RGBRange, fg: RGBRange) {
 		let output = ''
-		const ppc = 1 / text.length
-		const filled = Math.floor(progress / ppc)
-		const percent = progress % ppc / ppc
-		const empty = text.length - filled - Math.ceil(percent)
 
-		if (filled) output +=
-			TUI.style(48, 2, ...bg[1], 38, 2, ...fg[1]) + text.slice(0, filled)
+		const length = text.length
+		const normalized = Math.max(0, Math.min(1, progress))
+		const scaled = normalized * length
 
-		if (percent) output +=
-			TUI.style(48, 2, ...interpRGB(bg, percent), 38, 2, ...fg[Math.round(percent)]) +
-			text.slice(filled, filled + 1)
+		const filled = Math.floor(scaled)
+		const percent = scaled - filled
+		const empty = length - filled - (percent > 0 ? 1 : 0)
 
-		if (empty) output +=
-			TUI.style(48, 2, ...bg[0], 38, 2, ...fg[0]) + text.slice(-empty)
+		if (filled > 0) output +=
+			TUI.style(48, 2, ...bg[1], 38, 2, ...fg[1]) +
+			text.slice(0, filled)
+
+		if (percent > 0) output +=
+			TUI.style(
+				48, 2, ...interpRGB(bg, percent),
+				38, 2, ...fg[Math.round(percent)]
+			) + text.slice(filled, filled + 1)
+
+		if (empty > 0) output +=
+			TUI.style(48, 2, ...bg[0], 38, 2, ...fg[0]) +
+			text.slice(-empty)
 
 		return output + TUI.style()
 	}
