@@ -625,18 +625,13 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 		const empty = length - filled - (percent > 0 ? 1 : 0)
 
 		if (filled > 0) output +=
-			TUI.style(48, 2, ...bg[1], 38, 2, ...fg[1]) +
-			text.slice(0, filled)
+			TUI.style(48, 2, ...bg[1], 38, 2, ...fg[1]) + text.slice(0, filled)
 
 		if (percent > 0) output +=
-			TUI.style(
-				48, 2, ...interpRGB(bg, percent),
-				38, 2, ...fg[Math.round(percent)]
-			) + text.slice(filled, filled + 1)
+			TUI.style(48, 2, ...interpRGB(bg, percent), 38, 2, ...fg[Math.round(percent)]) + text.slice(filled, filled + 1)
 
 		if (empty > 0) output +=
-			TUI.style(48, 2, ...bg[0], 38, 2, ...fg[0]) +
-			text.slice(-empty)
+			TUI.style(48, 2, ...bg[0], 38, 2, ...fg[0]) + text.slice(-empty)
 
 		return output + TUI.style()
 	}
