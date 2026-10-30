@@ -614,23 +614,23 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	 * @returns The rendered progress bar string.
 	 */
 	static progressBar(text: string, progress: number, bg: RGBRange, fg: RGBRange) {
+		assert(progress >= 0, 'Progress can\'t be negative')
+		assert(progress <= 1, 'Progress can\'t be greater than 1')
+
 		let output = ''
-
-		const length = text.length
-		const normalized = Math.max(0, Math.min(1, progress))
-		const scaled = normalized * length
-
+		const scaled = progress * text.length
 		const filled = Math.floor(scaled)
 		const percent = scaled - filled
-		const empty = length - filled - (percent > 0 ? 1 : 0)
+		const empty = text.length - filled - Math.ceil(percent)
 
-		if (filled > 0) output +=
+		if (filled) output +=
 			TUI.style(48, 2, ...bg[1], 38, 2, ...fg[1]) + text.slice(0, filled)
 
-		if (percent > 0) output +=
-			TUI.style(48, 2, ...interpRGB(bg, percent), 38, 2, ...fg[Math.round(percent)]) + text.slice(filled, filled + 1)
+		if (percent) output +=
+			TUI.style(48, 2, ...interpRGB(bg, percent), 38, 2, ...fg[Math.round(percent)]) +
+			text.slice(filled, filled + 1)
 
-		if (empty > 0) output +=
+		if (empty) output +=
 			TUI.style(48, 2, ...bg[0], 38, 2, ...fg[0]) + text.slice(-empty)
 
 		return output + TUI.style()
