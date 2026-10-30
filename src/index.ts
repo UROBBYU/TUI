@@ -882,3 +882,24 @@ export class TUI extends ExtendedEventEmitter<TUIEvents> {
 	/** `CSI ? 1049 h/l` - Use Alternate/Normal Screen Buffer. _(default = alternate)_ */
 	static altBuffer(is = true) { return TUI.CSIBool('?1049', is) }
 }
+
+// Default ESC sequences
+TUI.ESC.toString = () => '\x1B'
+TUI.CSI.toString = () => '\x1B['
+
+TUI.eraseChars.toString = () => TUI.CSI('X')
+
+TUI.cursorUp.toString = () => TUI.CSI('A')
+TUI.cursorDown.toString = () => TUI.CSI('B')
+TUI.cursorRight.toString = () => TUI.CSI('C')
+TUI.cursorLeft.toString = () => TUI.CSI('D')
+
+TUI.cursorNextLine.toString = () => TUI.CSI('E')
+TUI.cursorPrecedingLine.toString = () => TUI.CSI('F')
+TUI.cursorPosition.toString = () => TUI.CSI('H')
+
+TUI.style.toString = () => TUI.CSI('m')
+TUI.cursorStyle.toString = () => TUI.CSI(' q')
+
+TUI.cursorVisible.toString = () => TUI.CSI('?25h')
+TUI.altBuffer.toString = () => TUI.CSI('?1049h')
